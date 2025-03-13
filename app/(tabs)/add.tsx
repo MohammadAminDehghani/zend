@@ -29,7 +29,7 @@ export default function AddScreen() {
       Alert.alert('Success', 'Event created successfully', [
         {
           text: 'OK',
-          onPress: () => router.back(),
+          onPress: () => router.replace('/(tabs)/events'),
         },
       ]);
     } catch (error) {
