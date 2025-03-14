@@ -1,7 +1,15 @@
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, Dimensions } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { API_URL } from '../config/api';
 import { useAuth } from '../context/auth';
+import MapView, { Marker } from 'react-native-maps';
+
+interface Location {
+  latitude: number;
+  longitude: number;
+  name?: string;
+}
 
 interface Event {
   _id: string;
@@ -9,6 +17,7 @@ interface Event {
   description: string;
   createdAt: string;
   creator: string;
+  location?: Location;
 }
 
 export default function EventsScreen() {
@@ -119,14 +128,40 @@ export default function EventsScreen() {
   const renderEvent = useCallback(({ item }: { item: Event }) => {
     if (!item || !item._id) return null;
     
-    console.log('Event creator:', item.creator);
-    console.log('Current userId:', userId);
-    console.log('Are they equal?:', item.creator === userId);
-    
     return (
       <View style={styles.eventCard}>
         <Text style={styles.eventTitle}>{item.title}</Text>
         <Text style={styles.eventDescription}>{item.description}</Text>
+        {item.location ? (
+          <>
+            <Text style={styles.locationName}>
+              📍 {item.location.name || 'Event Location'}
+            </Text>
+            <View style={styles.mapContainer}>
+              <MapView
+                style={styles.map}
+                initialRegion={{
+                  latitude: item.location.latitude,
+                  longitude: item.location.longitude,
+                  latitudeDelta: 0.01,
+                  longitudeDelta: 0.01,
+                }}
+                scrollEnabled={true}
+                zoomEnabled={true}
+              >
+                <Marker
+                  coordinate={{
+                    latitude: item.location.latitude,
+                    longitude: item.location.longitude,
+                  }}
+                  title={item.location.name || item.title}
+                />
+              </MapView>
+            </View>
+          </>
+        ) : (
+          <Text style={styles.noLocation}>No location specified</Text>
+        )}
         <Text style={styles.eventDate}>
           {new Date(item.createdAt).toLocaleDateString()}
         </Text>
@@ -234,5 +269,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  mapContainer: {
+    height: 150,
+    marginVertical: 8,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+  locationName: {
+    fontSize: 14,
+    color: '#444',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  noLocation: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+    marginVertical: 8,
   },
 }); 

@@ -6,13 +6,14 @@ const router = express.Router();
 // Create event
 router.post('/', async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, location } = req.body;
     const creator = req.user.userId; // Get creator ID from the decoded JWT token
     
     const event = new Event({
       title,
       description,
-      creator
+      creator,
+      location
     });
 
     await event.save();
