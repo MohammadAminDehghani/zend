@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -75,11 +76,78 @@ router.post('/login', async (req, res) => {
       user: {
         id: user._id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        phone: user.phone,
+        gender: user.gender,
+        interests: user.interests,
+        bio: user.bio
       }
     });
   } catch (error) {
     res.status(500).json({ message: 'Error logging in', error: error.message });
+  }
+});
+
+// Get user profile
+router.get('/profile', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      phone: user.phone,
+      gender: user.gender,
+      interests: user.interests,
+      bio: user.bio
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching profile', error: error.message });
+  }
+});
+
+// Update user profile
+router.patch('/profile', authMiddleware, async (req, res) => {
+  try {
+    const updates = Object.keys(req.body);
+    const allowedUpdates = ['name', 'email', 'phone', 'gender', 'interests', 'bio'];
+    const isValidOperation = updates.every(update => allowedUpdates.includes(update));
+
+    if (!isValidOperation) {
+      return res.status(400).json({ message: 'Invalid updates!' });
+    }
+
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // If email is being updated, check if it's already in use
+    if (req.body.email && req.body.email !== user.email) {
+      const existingUser = await User.findOne({ email: req.body.email });
+      if (existingUser) {
+        return res.status(400).json({ message: 'Email already in use' });
+      }
+    }
+
+    updates.forEach(update => user[update] = req.body[update]);
+    await user.save();
+
+    res.json({
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      phone: user.phone,
+      gender: user.gender,
+      interests: user.interests,
+      bio: user.bio
+    });
+  } catch (error) {
+    res.status(400).json({ message: 'Error updating profile', error: error.message });
   }
 });
 

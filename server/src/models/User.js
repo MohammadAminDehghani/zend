@@ -19,14 +19,41 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  phone: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  gender: {
+    type: String,
+    enum: ['man', 'woman', 'other'],
+    default: 'man'
+  },
+  interests: [{
+    type: String,
+    trim: true
+  }],
+  bio: {
+    type: String,
+    maxLength: 500,
+    trim: true,
+    default: ''
+  },
   createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
     type: Date,
     default: Date.now
   }
 });
 
-// Hash password before saving
+// Update timestamp on save
 userSchema.pre('save', async function(next) {
+  this.updatedAt = Date.now();
+  
+  // Only hash password if it's been modified
   if (!this.isModified('password')) return next();
   
   try {
