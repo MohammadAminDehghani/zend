@@ -6,6 +6,7 @@ import { API_URL } from '../config/api';
 export default function AddScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const userId = 'user123'; // TODO: Replace with actual user ID from authentication
 
   const handleSubmit = async () => {
     try {
@@ -13,8 +14,13 @@ export default function AddScreen() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-user-id': userId
         },
-        body: JSON.stringify({ title, description }),
+        body: JSON.stringify({
+          title,
+          description,
+          creator: userId // Include creator in the request body
+        }),
       });
 
       const data = await response.json();

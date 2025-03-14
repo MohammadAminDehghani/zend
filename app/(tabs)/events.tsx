@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { API_URL } from '../config/api';
 
@@ -7,6 +7,7 @@ interface Event {
   title: string;
   description: string;
   createdAt: string;
+  creator: string;
 }
 
 export default function EventsScreen() {
@@ -14,6 +15,7 @@ export default function EventsScreen() {
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
   const isMounted = useRef(true);
+  const userId = 'user123'; // TODO: Replace with actual user ID from authentication
 
   const fetchEvents = useCallback(async () => {
     const controller = new AbortController();
@@ -46,6 +48,28 @@ export default function EventsScreen() {
     };
   }, []);
 
+  const deleteEvent = useCallback(async (eventId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/events/${eventId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-user-id': userId
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete event');
+      }
+
+      setEvents(prevEvents => prevEvents.filter(event => event._id !== eventId));
+      Alert.alert('Success', 'Event deleted successfully');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      Alert.alert('Error', errorMessage);
+    }
+  }, [userId]);
+
   useEffect(() => {
     let cleanup: (() => void) | undefined;
 
@@ -63,6 +87,24 @@ export default function EventsScreen() {
     };
   }, [fetchEvents]);
 
+  const handleDeletePress = useCallback((eventId: string) => {
+    Alert.alert(
+      'Delete Event',
+      'Are you sure you want to delete this event?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          onPress: () => deleteEvent(eventId),
+          style: 'destructive'
+        }
+      ]
+    );
+  }, [deleteEvent]);
+
   const renderEvent = useCallback(({ item }: { item: Event }) => {
     if (!item || !item._id) return null;
     
@@ -73,9 +115,17 @@ export default function EventsScreen() {
         <Text style={styles.eventDate}>
           {new Date(item.createdAt).toLocaleDateString()}
         </Text>
+        {item.creator === userId && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => handleDeletePress(item._id)}
+          >
+            <Text style={styles.deleteButtonText}>Delete</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
-  }, []);
+  }, [userId, handleDeletePress]);
 
   const keyExtractor = useCallback((item: Event) => item._id, []);
 
@@ -149,5 +199,17 @@ const styles = StyleSheet.create({
   eventDate: {
     fontSize: 12,
     color: '#999',
+  },
+  deleteButton: {
+    backgroundColor: '#ff4444',
+    padding: 8,
+    borderRadius: 4,
+    marginTop: 8,
+    alignSelf: 'flex-end',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 }); 
