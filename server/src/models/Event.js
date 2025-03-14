@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 
 const locationSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: true
+  },
   latitude: {
     type: Number,
     required: true
@@ -8,10 +12,6 @@ const locationSchema = new mongoose.Schema({
   longitude: {
     type: Number,
     required: true
-  },
-  name: {
-    type: String,
-    required: false
   }
 }, { _id: false });
 
@@ -30,10 +30,53 @@ const eventSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  location: {
-    type: locationSchema,
-    required: false
+  type: {
+    type: String,
+    enum: ['one-time', 'recurring'],
+    required: true
   },
+  locations: [{
+    type: locationSchema,
+    required: true
+  }],
+  startDate: {
+    type: Date,
+    required: true
+  },
+  endDate: {
+    type: Date,
+    required: function() {
+      return this.type === 'recurring';
+    }
+  },
+  startTime: {
+    type: String,
+    required: true,
+    match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
+  },
+  endTime: {
+    type: String,
+    required: true,
+    match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
+  },
+  repeatFrequency: {
+    type: String,
+    enum: ['daily', 'weekly', 'monthly'],
+    required: function() {
+      return this.type === 'recurring';
+    }
+  },
+  repeatDays: [{
+    type: String,
+    enum: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    required: function() {
+      return this.type === 'recurring' && this.repeatFrequency === 'weekly';
+    }
+  }],
+  tags: [{
+    type: String,
+    trim: true
+  }],
   createdAt: {
     type: Date,
     default: Date.now

@@ -6,14 +6,34 @@ const router = express.Router();
 // Create event
 router.post('/', async (req, res) => {
   try {
-    const { title, description, location } = req.body;
-    const creator = req.user.userId; // Get creator ID from the decoded JWT token
+    const { 
+      title, 
+      description, 
+      type, 
+      locations, 
+      startDate, 
+      endDate, 
+      startTime, 
+      endTime,
+      repeatFrequency,
+      repeatDays,
+      tags 
+    } = req.body;
+    const creator = req.user.userId;
     
     const event = new Event({
       title,
       description,
       creator,
-      location
+      type,
+      locations,
+      startDate: new Date(startDate),
+      endDate: endDate ? new Date(endDate) : undefined,
+      startTime,
+      endTime,
+      repeatFrequency,
+      repeatDays,
+      tags
     });
 
     await event.save();
@@ -26,7 +46,7 @@ router.post('/', async (req, res) => {
 // Get all events
 router.get('/', async (req, res) => {
   try {
-    const events = await Event.find().sort({ createdAt: -1 });
+    const events = await Event.find().sort({ startDate: 1 });
     res.json(events);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching events', error: error.message });
@@ -36,7 +56,7 @@ router.get('/', async (req, res) => {
 // Delete event
 router.delete('/:id', async (req, res) => {
   try {
-    const creator = req.user.userId; // Get creator ID from the decoded JWT token
+    const creator = req.user.userId;
 
     const event = await Event.findById(req.params.id);
     if (!event) {

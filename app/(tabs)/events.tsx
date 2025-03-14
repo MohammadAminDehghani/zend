@@ -6,9 +6,9 @@ import { useAuth } from '../context/auth';
 import MapView, { Marker } from 'react-native-maps';
 
 interface Location {
+  name: string;
   latitude: number;
   longitude: number;
-  name?: string;
 }
 
 interface Event {
@@ -17,7 +17,15 @@ interface Event {
   description: string;
   createdAt: string;
   creator: string;
-  location?: Location;
+  type: 'one-time' | 'recurring';
+  locations: Location[];
+  startDate: string;
+  endDate?: string;
+  startTime: string;
+  endTime: string;
+  repeatFrequency?: 'daily' | 'weekly' | 'monthly';
+  repeatDays?: string[];
+  tags: string[];
 }
 
 export default function EventsScreen() {
@@ -128,43 +136,105 @@ export default function EventsScreen() {
   const renderEvent = useCallback(({ item }: { item: Event }) => {
     if (!item || !item._id) return null;
     
+    const formatDate = (dateString: string) => {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    };
+
+    const formatTime = (timeString: string) => {
+      return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    };
+
+    const renderTags = () => (
+      <View style={styles.tagsContainer}>
+        {item.tags.map((tag, index) => (
+          <View key={index} style={styles.tag}>
+            <Text style={styles.tagText}>{tag}</Text>
+          </View>
+        ))}
+      </View>
+    );
+
+    const renderRecurringInfo = () => {
+      if (item.type !== 'recurring') return null;
+
+      return (
+        <View style={styles.recurringInfo}>
+          <Text style={styles.recurringText}>
+            Repeats {item.repeatFrequency}ly
+            {item.repeatDays && item.repeatDays.length > 0 && 
+              ` on ${item.repeatDays.join(', ')}`}
+          </Text>
+          {item.endDate && (
+            <Text style={styles.endDateText}>
+              Until {formatDate(item.endDate)}
+            </Text>
+          )}
+        </View>
+      );
+    };
+
     return (
       <View style={styles.eventCard}>
         <Text style={styles.eventTitle}>{item.title}</Text>
         <Text style={styles.eventDescription}>{item.description}</Text>
-        {item.location ? (
-          <>
-            <Text style={styles.locationName}>
-              📍 {item.location.name || 'Event Location'}
-            </Text>
-            <View style={styles.mapContainer}>
-              <MapView
-                style={styles.map}
-                initialRegion={{
-                  latitude: item.location.latitude,
-                  longitude: item.location.longitude,
-                  latitudeDelta: 0.01,
-                  longitudeDelta: 0.01,
-                }}
-                scrollEnabled={true}
-                zoomEnabled={true}
-              >
-                <Marker
-                  coordinate={{
-                    latitude: item.location.latitude,
-                    longitude: item.location.longitude,
+        
+        <View style={styles.dateTimeInfo}>
+          <Text style={styles.dateTimeText}>
+            {formatDate(item.startDate)}
+          </Text>
+          <Text style={styles.dateTimeText}>
+            {formatTime(item.startTime)} - {formatTime(item.endTime)}
+          </Text>
+        </View>
+
+        {renderRecurringInfo()}
+
+        {renderTags()}
+
+        <View style={styles.locationsContainer}>
+          <Text style={styles.locationsTitle}>Locations:</Text>
+          {item.locations.map((location, index) => (
+            <View key={index} style={styles.locationItem}>
+              <Text style={styles.locationName}>
+                📍 {location.name}
+              </Text>
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: location.latitude,
+                    longitude: location.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
                   }}
-                  title={item.location.name || item.title}
-                />
-              </MapView>
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: location.latitude,
+                      longitude: location.longitude,
+                    }}
+                    title={location.name}
+                  />
+                </MapView>
+              </View>
             </View>
-          </>
-        ) : (
-          <Text style={styles.noLocation}>No location specified</Text>
-        )}
-        <Text style={styles.eventDate}>
-          {new Date(item.createdAt).toLocaleDateString()}
+          ))}
+        </View>
+
+        <Text style={styles.createdAt}>
+          Created {new Date(item.createdAt).toLocaleDateString()}
         </Text>
+
         {item.creator === userId && (
           <TouchableOpacity
             style={styles.deleteButton}
@@ -221,20 +291,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+    backgroundColor: '#f5f5f5',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 16,
+    color: '#333',
   },
   listContainer: {
     paddingBottom: 16,
   },
   eventCard: {
     backgroundColor: '#fff',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -245,34 +317,77 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   eventTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 8,
+    color: '#333',
   },
   eventDescription: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  eventDate: {
-    fontSize: 12,
-    color: '#999',
+  dateTimeInfo: {
+    marginBottom: 12,
   },
-  deleteButton: {
-    backgroundColor: '#ff4444',
-    padding: 8,
-    borderRadius: 4,
-    marginTop: 8,
-    alignSelf: 'flex-end',
-  },
-  deleteButtonText: {
-    color: '#fff',
+  dateTimeText: {
     fontSize: 14,
-    fontWeight: 'bold',
+    color: '#444',
+    marginBottom: 4,
+  },
+  recurringInfo: {
+    backgroundColor: '#f0f8ff',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  recurringText: {
+    fontSize: 14,
+    color: '#0066cc',
+    fontWeight: '500',
+  },
+  endDateText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 12,
+  },
+  tag: {
+    backgroundColor: '#e1f5fe',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    margin: 4,
+  },
+  tagText: {
+    fontSize: 12,
+    color: '#0288d1',
+    fontWeight: '500',
+  },
+  locationsContainer: {
+    marginBottom: 12,
+  },
+  locationsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#333',
+  },
+  locationItem: {
+    marginBottom: 12,
+  },
+  locationName: {
+    fontSize: 14,
+    color: '#444',
+    marginBottom: 4,
+    fontWeight: '500',
   },
   mapContainer: {
-    height: 150,
-    marginVertical: 8,
+    height: 120,
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -280,16 +395,20 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  locationName: {
-    fontSize: 14,
-    color: '#444',
+  createdAt: {
+    fontSize: 12,
+    color: '#999',
     marginBottom: 8,
-    fontWeight: '500',
   },
-  noLocation: {
+  deleteButton: {
+    backgroundColor: '#ff4444',
+    padding: 8,
+    borderRadius: 6,
+    alignSelf: 'flex-end',
+  },
+  deleteButtonText: {
+    color: '#fff',
     fontSize: 14,
-    color: '#666',
-    fontStyle: 'italic',
-    marginVertical: 8,
+    fontWeight: 'bold',
   },
 }); 
