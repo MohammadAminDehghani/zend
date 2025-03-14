@@ -1,9 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { jwtDecode } from 'jwt-decode';
 
 type AuthContextType = {
   isAuthenticated: boolean;
   setIsAuthenticated: (value: boolean) => void;
   isLoading: boolean;
+  token: string | null;
+  userId: string | null;
+  setToken: (token: string | null) => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -11,13 +17,36 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [token, setToken] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  const processToken = (token: string | null) => {
+    if (token) {
+      try {
+        const decoded = jwtDecode<{ userId: string }>(token);
+        console.log('Decoded token:', decoded);
+        setUserId(decoded.userId);
+      } catch (error) {
+        console.error('Error decoding token:', error);
+        setUserId(null);
+      }
+    } else {
+      setUserId(null);
+    }
+  };
 
   useEffect(() => {
-    // Simulate checking for stored auth state
     const checkAuth = async () => {
       try {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setIsAuthenticated(false);
+        const storedToken = await AsyncStorage.getItem('userToken');
+        console.log('Stored token:', storedToken);
+        if (storedToken) {
+          setToken(storedToken);
+          processToken(storedToken);
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error('Error checking auth state:', error);
       } finally {
         setIsLoading(false);
       }
@@ -26,8 +55,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, []);
 
+  const logout = async () => {
+    try {
+      await AsyncStorage.removeItem('userToken');
+      setToken(null);
+      setUserId(null);
+      setIsAuthenticated(false);
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  };
+
+  const wrappedSetToken = (newToken: string | null) => {
+    console.log('Setting new token:', newToken);
+    setToken(newToken);
+    processToken(newToken);
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated, isLoading }}>
+    <AuthContext.Provider 
+      value={{ 
+        isAuthenticated, 
+        setIsAuthenticated, 
+        isLoading,
+        token,
+        userId,
+        setToken: wrappedSetToken,
+        logout
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

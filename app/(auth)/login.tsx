@@ -3,11 +3,12 @@ import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from 'reac
 import { router } from 'expo-router';
 import { API_URL } from './../config/api';
 import { useAuth } from '../context/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { setIsAuthenticated } = useAuth();
+  const { setIsAuthenticated, setToken } = useAuth();
 
   const handleLogin = async () => {
     try {
@@ -25,10 +26,9 @@ export default function LoginScreen() {
         throw new Error(data.message || 'Login failed');
       }
 
-      // Store the token and user data (you might want to use AsyncStorage or a state management solution)
-      console.log('Login successful:', data);
-      
-      // Set authenticated state
+      // Store the token
+      await AsyncStorage.setItem('userToken', data.token);
+      setToken(data.token);
       setIsAuthenticated(true);
       
       // Navigate to the main app

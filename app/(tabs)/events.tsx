@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { API_URL } from '../config/api';
+import { useAuth } from '../context/auth';
 
 interface Event {
   _id: string;
@@ -13,15 +14,19 @@ interface Event {
 export default function EventsScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const isMounted = useRef(true);
-  const userId = 'user123'; // TODO: Replace with actual user ID from authentication
+  const { token, userId } = useAuth();
 
   const fetchEvents = useCallback(async () => {
     const controller = new AbortController();
     
     try {
       const response = await fetch(`${API_URL}/api/events`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         signal: controller.signal
       });
       
@@ -40,20 +45,26 @@ export default function EventsScreen() {
     } finally {
       if (isMounted.current) {
         setLoading(false);
+        setRefreshing(false);
       }
     }
 
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [token]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchEvents();
+  }, [fetchEvents]);
 
   const deleteEvent = useCallback(async (eventId: string) => {
     try {
       const response = await fetch(`${API_URL}/api/events/${eventId}`, {
         method: 'DELETE',
         headers: {
-          'x-user-id': userId
+          'Authorization': `Bearer ${token}`
         }
       });
 
@@ -68,7 +79,7 @@ export default function EventsScreen() {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
       Alert.alert('Error', errorMessage);
     }
-  }, [userId]);
+  }, [token]);
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -107,6 +118,10 @@ export default function EventsScreen() {
 
   const renderEvent = useCallback(({ item }: { item: Event }) => {
     if (!item || !item._id) return null;
+    
+    console.log('Event creator:', item.creator);
+    console.log('Current userId:', userId);
+    console.log('Are they equal?:', item.creator === userId);
     
     return (
       <View style={styles.eventCard}>
@@ -154,6 +169,14 @@ export default function EventsScreen() {
         maintainVisibleContentPosition={{
           minIndexForVisible: 0,
         }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#0000ff']}
+            tintColor="#0000ff"
+          />
+        }
       />
     </View>
   );

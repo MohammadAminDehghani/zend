@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { API_URL } from '../config/api';
+import { useAuth } from '../context/auth';
 
 export default function AddScreen() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const userId = 'user123'; // TODO: Replace with actual user ID from authentication
+  const { token, userId } = useAuth();
 
   const handleSubmit = async () => {
     try {
@@ -14,12 +15,12 @@ export default function AddScreen() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': userId
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({
           title,
           description,
-          creator: userId // Include creator in the request body
+          creator: userId // Use userId instead of token
         }),
       });
 

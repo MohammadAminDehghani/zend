@@ -6,17 +6,9 @@ const router = express.Router();
 // Create event
 router.post('/', async (req, res) => {
   try {
-    const { title, description, creator } = req.body;
-    const headerCreator = req.headers['x-user-id']; // Get creator ID from header
+    const { title, description } = req.body;
+    const creator = req.user.userId; // Get creator ID from the decoded JWT token
     
-    if (!headerCreator) {
-      return res.status(401).json({ message: 'Creator ID is required in headers' });
-    }
-
-    if (!creator || creator !== headerCreator) {
-      return res.status(401).json({ message: 'Creator ID mismatch or missing in body' });
-    }
-
     const event = new Event({
       title,
       description,
@@ -43,10 +35,7 @@ router.get('/', async (req, res) => {
 // Delete event
 router.delete('/:id', async (req, res) => {
   try {
-    const creator = req.headers['x-user-id'];
-    if (!creator) {
-      return res.status(401).json({ message: 'Creator ID is required' });
-    }
+    const creator = req.user.userId; // Get creator ID from the decoded JWT token
 
     const event = await Event.findById(req.params.id);
     if (!event) {
