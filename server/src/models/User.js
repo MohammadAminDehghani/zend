@@ -19,6 +19,16 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  pictures: [{
+    url: {
+      type: String,
+      required: true
+    },
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   phone: {
     type: String,
     trim: true,

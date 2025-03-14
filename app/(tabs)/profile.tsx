@@ -1,9 +1,10 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image } from 'react-native';
 import { useAuth } from '../context/auth';
 import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL } from '../config/api';
+import * as ImagePicker from 'expo-image-picker';
 
 interface UserProfile {
   id?: string;
@@ -13,6 +14,11 @@ interface UserProfile {
   gender: 'man' | 'woman' | 'other';
   interests: string[];
   bio: string;
+  pictures: Array<{
+    _id: string;
+    url: string;
+    uploadedAt: string;
+  }>;
 }
 
 type Gender = 'man' | 'woman' | 'other';
@@ -25,12 +31,14 @@ export default function ProfileScreen() {
     phone: '',
     gender: 'man',
     interests: [],
-    bio: ''
+    bio: '',
+    pictures: []
   });
   const [newInterest, setNewInterest] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
   useEffect(() => {
     if (token) {
@@ -126,6 +134,74 @@ export default function ProfileScreen() {
     router.replace('/login');
   };
 
+  const handleImagePick = async () => {
+    if (profile.pictures.length >= 6) {
+      Alert.alert('Maximum Limit', 'You can only upload up to 6 pictures');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        const formData = new FormData();
+        formData.append('pictures', {
+          uri: result.assets[0].uri,
+          type: 'image/jpeg',
+          name: 'photo.jpg',
+        } as any);
+
+        setIsUploadingImages(true);
+        const response = await axios.post(
+          `${API_URL}/api/auth/profile/pictures`,
+          formData,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+
+        setProfile(prev => ({
+          ...prev,
+          pictures: response.data.pictures
+        }));
+      }
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to upload image');
+      console.error('Error uploading image:', error);
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
+
+  const handleDeleteImage = async (pictureId: string) => {
+    try {
+      const response = await axios.delete(
+        `${API_URL}/api/auth/profile/pictures/${pictureId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      setProfile(prev => ({
+        ...prev,
+        pictures: response.data.pictures
+      }));
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to delete image');
+      console.error('Error deleting image:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -154,6 +230,36 @@ export default function ProfileScreen() {
             <Text style={styles.saveButtonText}>
               {isSaving ? 'Saving...' : 'Save'}
             </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.picturesContainer}>
+        {profile.pictures?.map((picture, index) => (
+          <View key={picture._id} style={styles.pictureWrapper}>
+            <Image 
+              source={{ uri: `${API_URL}${picture.url}` }} 
+              style={styles.picture}
+            />
+            <TouchableOpacity
+              style={styles.deleteImageButton}
+              onPress={() => handleDeleteImage(picture._id)}
+            >
+              <Text style={styles.deleteImageText}>×</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+        {(!profile.pictures || profile.pictures.length < 6) && (
+          <TouchableOpacity 
+            style={[styles.addPictureButton, isUploadingImages && styles.buttonDisabled]}
+            onPress={handleImagePick}
+            disabled={isUploadingImages}
+          >
+            {isUploadingImages ? (
+              <ActivityIndicator size="small" color="#007AFF" />
+            ) : (
+              <Text style={styles.addPictureText}>+</Text>
+            )}
           </TouchableOpacity>
         )}
       </View>
@@ -424,5 +530,55 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.7,
+  },
+  picturesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    padding: 10,
+    gap: 10,
+  },
+  pictureWrapper: {
+    position: 'relative',
+    width: '31%',
+    aspectRatio: 1,
+    marginBottom: 10,
+  },
+  picture: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  addPictureButton: {
+    width: '31%',
+    aspectRatio: 1,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
+  },
+  addPictureText: {
+    fontSize: 24,
+    color: '#007AFF',
+  },
+  deleteImageButton: {
+    position: 'absolute',
+    top: -10,
+    right: -10,
+    backgroundColor: '#ff4444',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  deleteImageText: {
+    color: 'white',
+    fontSize: 18,
+    lineHeight: 24,
   },
 }); 
