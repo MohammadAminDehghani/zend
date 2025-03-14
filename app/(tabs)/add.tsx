@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert, ScrollView, Dimensions, Platform } from 'react-native';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert, ScrollView, Dimensions, Platform, PanResponder, Animated } from 'react-native';
 import { router } from 'expo-router';
 import { API_URL } from '../config/api';
 import { useAuth } from '../context/auth';
-import MapView, { Marker, MapPressEvent } from 'react-native-maps';
+import MapView, { Marker, MapPressEvent, PROVIDER_GOOGLE } from 'react-native-maps';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 
 // Common tags for events
 const COMMON_TAGS = [
@@ -32,10 +34,10 @@ interface EventForm {
   repeatFrequency?: 'daily' | 'weekly' | 'monthly';
   repeatDays?: string[];
   tags: string[];
+  capacity: number;
 }
 
 export default function AddScreen() {
-  const [activeTab, setActiveTab] = useState<'one-time' | 'recurring'>('one-time');
   const [form, setForm] = useState<EventForm>({
     title: '',
     description: '',
@@ -44,7 +46,8 @@ export default function AddScreen() {
     startDate: new Date(),
     startTime: '09:00',
     endTime: '17:00',
-    tags: []
+    tags: [],
+    capacity: 10
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
@@ -52,6 +55,54 @@ export default function AddScreen() {
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
   const [locationName, setLocationName] = useState('');
   const { token, userId } = useAuth();
+  const [draggingLocationIndex, setDraggingLocationIndex] = useState<number | null>(null);
+  const pan = useRef(new Animated.ValueXY()).current;
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationPermissionStatus, setLocationPermissionStatus] = useState<'granted' | 'denied' | 'pending'>('pending');
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      setLocationPermissionStatus(status === 'granted' ? 'granted' : 'denied');
+      
+      if (status === 'granted') {
+        try {
+          const location = await Location.getCurrentPositionAsync({});
+          setUserLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude
+          });
+        } catch (error) {
+          console.error('Error getting location:', error);
+          Alert.alert(
+            'Location Error',
+            'Could not get your current location. Please try again or select manually.'
+          );
+        }
+      }
+    })();
+  }, []);
+
+  const requestLocationPermission = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    setLocationPermissionStatus(status === 'granted' ? 'granted' : 'denied');
+    
+    if (status === 'granted') {
+      try {
+        const location = await Location.getCurrentPositionAsync({});
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
+        });
+      } catch (error) {
+        Alert.alert(
+          'Location Error',
+          'Could not get your current location. Please try again or select manually.'
+        );
+      }
+    }
+  };
 
   const handleMapPress = useCallback((event: MapPressEvent) => {
     const { coordinate } = event.nativeEvent;
@@ -85,7 +136,7 @@ export default function AddScreen() {
       const eventData = {
         ...form,
         creator: userId,
-        type: activeTab
+        type: form.type
       };
 
       const response = await fetch(`${API_URL}/api/events`, {
@@ -112,7 +163,8 @@ export default function AddScreen() {
         startDate: new Date(),
         startTime: '09:00',
         endTime: '17:00',
-        tags: []
+        tags: [],
+        capacity: 10
       });
       setCurrentLocation(null);
       setLocationName('');
@@ -138,6 +190,57 @@ export default function AddScreen() {
     }));
   };
 
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (_, gesture) => {
+      pan.setOffset({
+        x: 0,
+        y: gesture.dy
+      });
+      pan.setValue({ x: 0, y: 0 });
+    },
+    onPanResponderMove: (_, gesture) => {
+      pan.setValue({ x: 0, y: gesture.dy });
+    },
+    onPanResponderRelease: (_, gesture) => {
+      pan.flattenOffset();
+      const moveDistance = Math.abs(gesture.dy);
+      const moveThreshold = 50; // Minimum distance to trigger reorder
+      
+      if (moveDistance > moveThreshold && draggingLocationIndex !== null) {
+        const itemHeight = 80; // Approximate height of each location item
+        const moveDirection = gesture.dy > 0 ? 1 : -1;
+        const newIndex = Math.max(
+          0,
+          Math.min(
+            form.locations.length - 1,
+            draggingLocationIndex + moveDirection
+          )
+        );
+        
+        if (newIndex !== draggingLocationIndex) {
+          const newLocations = [...form.locations];
+          const [movedItem] = newLocations.splice(draggingLocationIndex, 1);
+          newLocations.splice(newIndex, 0, movedItem);
+          setForm(prev => ({ ...prev, locations: newLocations }));
+        }
+      }
+      
+      // Reset animation
+      Animated.spring(pan, {
+        toValue: { x: 0, y: 0 },
+        useNativeDriver: false,
+        tension: 40,
+        friction: 5
+      }).start(() => setDraggingLocationIndex(null));
+    }
+  });
+
+  const handleLocationDragStart = (index: number) => {
+    setDraggingLocationIndex(index);
+  };
+
   const renderLocationInput = () => (
     <View style={styles.locationSection}>
       <Text style={styles.sectionTitle}>Add Location</Text>
@@ -148,25 +251,43 @@ export default function AddScreen() {
         onChangeText={setLocationName}
       />
       <View style={styles.mapContainer}>
-        <MapView
-          style={styles.map}
-          initialRegion={{
-            latitude: 37.78825,
-            longitude: -122.4324,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
-          }}
-          onPress={handleMapPress}
-        >
-          {currentLocation && (
-            <Marker
-              coordinate={{
-                latitude: currentLocation.latitude,
-                longitude: currentLocation.longitude,
-              }}
-            />
-          )}
-        </MapView>
+        {locationPermissionStatus === 'pending' ? (
+          <View style={styles.locationPermissionContainer}>
+            <Text style={styles.locationPermissionText}>
+              We need your location to show nearby places
+            </Text>
+            <TouchableOpacity
+              style={styles.locationPermissionButton}
+              onPress={requestLocationPermission}
+            >
+              <Text style={styles.locationPermissionButtonText}>
+                Grant Location Access
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <MapView
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            initialRegion={{
+              latitude: userLocation?.latitude || 37.78825,
+              longitude: userLocation?.longitude || -122.4324,
+              latitudeDelta: 0.0922,
+              longitudeDelta: 0.0421,
+            }}
+            showsUserLocation={locationPermissionStatus === 'granted'}
+            onPress={handleMapPress}
+          >
+            {currentLocation && (
+              <Marker
+                coordinate={{
+                  latitude: currentLocation.latitude,
+                  longitude: currentLocation.longitude,
+                }}
+              />
+            )}
+          </MapView>
+        )}
       </View>
       <TouchableOpacity 
         style={[styles.button, styles.addButton]} 
@@ -179,13 +300,44 @@ export default function AddScreen() {
       {form.locations.length > 0 && (
         <View style={styles.locationsList}>
           <Text style={styles.sectionTitle}>Added Locations</Text>
+          <Text style={styles.dragHint}>Hold and drag ≡ to reorder locations</Text>
           {form.locations.map((loc, index) => (
-            <View key={index} style={styles.locationItem}>
-              <Text>{loc.name}</Text>
-              <TouchableOpacity onPress={() => removeLocation(index)}>
-                <Text style={styles.removeButton}>Remove</Text>
-              </TouchableOpacity>
-            </View>
+            <Animated.View
+              key={index}
+              style={[
+                styles.locationItem,
+                draggingLocationIndex === index && {
+                  transform: [{ translateY: pan.y }],
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 4,
+                  elevation: 8,
+                }
+              ]}
+              {...(draggingLocationIndex === index ? panResponder.panHandlers : {})}
+            >
+              <View style={styles.locationItemContent}>
+                <TouchableOpacity
+                  onPressIn={() => handleLocationDragStart(index)}
+                  style={styles.dragHandle}
+                >
+                  <Ionicons name="menu" size={24} color="#666" />
+                </TouchableOpacity>
+                <View style={styles.locationItemMain}>
+                  <Text style={styles.locationItemName}>{loc.name}</Text>
+                  <Text style={styles.locationItemCoords}>
+                    {loc.latitude.toFixed(6)}, {loc.longitude.toFixed(6)}
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  onPress={() => removeLocation(index)}
+                  style={styles.removeLocationButton}
+                >
+                  <Ionicons name="close-circle" size={24} color="#ff4444" />
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
           ))}
         </View>
       )}
@@ -283,27 +435,49 @@ export default function AddScreen() {
     </View>
   );
 
-  return (
-    <ScrollView style={styles.container}>
-      <View style={styles.tabs}>
+  const renderCapacity = () => (
+    <View style={styles.capacitySection}>
+      <Text style={styles.sectionTitle}>Capacity</Text>
+      <View style={styles.capacityContainer}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'one-time' && styles.activeTab]}
-          onPress={() => setActiveTab('one-time')}
+          style={styles.capacityButton}
+          onPress={() => setForm(prev => ({
+            ...prev,
+            capacity: Math.max(1, prev.capacity - 1)
+          }))}
         >
-          <Text style={[styles.tabText, activeTab === 'one-time' && styles.activeTabText]}>
-            One-time Event
-          </Text>
+          <Ionicons name="remove" size={24} color="#666" />
         </TouchableOpacity>
+        <TextInput
+          style={styles.capacityInput}
+          value={form.capacity.toString()}
+          keyboardType="number-pad"
+          onChangeText={(text) => {
+            const num = parseInt(text);
+            if (!isNaN(num) && num >= 1 && num <= 99) {
+              setForm(prev => ({ ...prev, capacity: num }));
+            }
+          }}
+        />
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'recurring' && styles.activeTab]}
-          onPress={() => setActiveTab('recurring')}
+          style={styles.capacityButton}
+          onPress={() => setForm(prev => ({
+            ...prev,
+            capacity: Math.min(99, prev.capacity + 1)
+          }))}
         >
-          <Text style={[styles.tabText, activeTab === 'recurring' && styles.activeTabText]}>
-            Recurring Event
-          </Text>
+          <Ionicons name="add" size={24} color="#666" />
         </TouchableOpacity>
       </View>
+    </View>
+  );
 
+  return (
+    <ScrollView 
+      ref={scrollViewRef}
+      style={styles.container}
+      scrollEnabled={draggingLocationIndex === null}
+    >
       <TextInput
         style={styles.input}
         placeholder="Event Title"
@@ -385,6 +559,8 @@ export default function AddScreen() {
 
       {renderTags()}
 
+      {renderCapacity()}
+
       <TouchableOpacity 
         style={[styles.button, styles.submitButton]} 
         onPress={handleSubmit}
@@ -452,29 +628,6 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#fff',
   },
-  tabs: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#007AFF',
-  },
-  tabText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  activeTabText: {
-    color: '#007AFF',
-    fontWeight: 'bold',
-  },
   input: {
     borderWidth: 1,
     borderColor: '#ddd',
@@ -529,18 +682,42 @@ const styles = StyleSheet.create({
   locationsList: {
     marginTop: 10,
   },
+  dragHint: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
   locationItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 10,
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 5,
-    marginBottom: 5,
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#fff',
   },
-  removeButton: {
-    color: '#ff4444',
+  locationItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+  },
+  dragHandle: {
+    marginRight: 12,
+  },
+  locationItemMain: {
+    flex: 1,
+  },
+  locationItemName: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  locationItemCoords: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  removeLocationButton: {
+    padding: 4,
   },
   recurringSection: {
     marginBottom: 20,
@@ -667,5 +844,55 @@ const styles = StyleSheet.create({
   },
   tagButtonTextActive: {
     color: '#fff',
+  },
+  locationPermissionContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 5,
+  },
+  locationPermissionText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  locationPermissionButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  locationPermissionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  capacitySection: {
+    marginBottom: 20,
+  },
+  capacityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    padding: 5,
+  },
+  capacityButton: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+  },
+  capacityInput: {
+    width: 60,
+    textAlign: 'center',
+    fontSize: 18,
+    fontWeight: '500',
+    marginHorizontal: 10,
   },
 }); 
