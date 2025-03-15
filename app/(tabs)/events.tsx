@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, Dimensions, Modal, Image, Animated, ScrollView } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { API_URL } from '../config/api';
 import { useAuth } from '../context/auth';
 import MapView, { Marker } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 
 interface Location {
   name: string;
@@ -16,7 +17,20 @@ interface Event {
   title: string;
   description: string;
   createdAt: string;
-  creator: string;
+  creator: {
+    id: string;
+    name: string;
+    email: string;
+    pictures: Array<{
+      url: string;
+      uploadedAt: string;
+      _id: string;
+    }>;
+    phone: string;
+    gender: 'man' | 'woman' | 'other';
+    interests: string[];
+    bio: string;
+  };
   type: 'one-time' | 'recurring';
   locations: Location[];
   startDate: string;
@@ -28,6 +42,183 @@ interface Event {
   tags: string[];
 }
 
+interface CreatorModalProps {
+  visible: boolean;
+  creator: Event['creator'];
+  onClose: () => void;
+}
+
+const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }) => {
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const [activeSlide, setActiveSlide] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
+  
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible]);
+
+  const renderPaginationDots = () => {
+    return (
+      <View style={styles.paginationDots}>
+        {creator.pictures.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.paginationDot,
+              index === activeSlide && styles.paginationDotActive,
+            ]}
+          />
+        ))}
+      </View>
+    );
+  };
+
+  const renderCreatorPhotos = () => {
+    if (!creator.pictures || creator.pictures.length === 0) {
+      return (
+        <View style={[styles.creatorPhoto, styles.creatorPhotoPlaceholder]}>
+          <Ionicons name="person" size={60} color="#666" />
+        </View>
+      );
+    }
+
+    const imageSize = Math.min(Dimensions.get('window').width, Dimensions.get('window').width);
+
+    return (
+      <View style={styles.sliderContainer}>
+        <FlatList
+          ref={flatListRef}
+          data={creator.pictures}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(event) => {
+            const currentIndex = Math.floor(
+              event.nativeEvent.contentOffset.x / imageSize
+            );
+            setActiveSlide(currentIndex);
+          }}
+          renderItem={({ item }) => (
+            <View style={styles.imageWrapper}>
+              <Image
+                source={{ uri: `${API_URL}${item.url}` }}
+                style={styles.sliderImage}
+                defaultSource={require('../assets/default-avatar.png')}
+              />
+            </View>
+          )}
+          keyExtractor={(item) => item._id}
+        />
+        {renderPaginationDots()}
+      </View>
+    );
+  };
+
+  const renderInterests = () => {
+    if (!creator.interests || creator.interests.length === 0) {
+      return <Text style={styles.noInterests}>No interests added</Text>;
+    }
+    return (
+      <View style={styles.interestsContainer}>
+        {creator.interests.map((interest, index) => (
+          <View key={index} style={styles.interestTag}>
+            <Text style={styles.interestText}>{interest}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity
+          style={[
+            styles.creatorModal,
+            {
+              transform: [
+                {
+                  translateY: slideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [300, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <ScrollView style={styles.creatorModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Creator Profile</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>×</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.creatorProfile}>
+              {renderCreatorPhotos()}
+              <Text style={styles.creatorName}>{creator.name}</Text>
+              <Text style={styles.creatorEmail}>{creator.email}</Text>
+              
+              {creator.phone && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="call-outline" size={20} color="#666" />
+                  <Text style={styles.infoText}>{creator.phone}</Text>
+                </View>
+              )}
+
+              {creator.gender && (
+                <View style={styles.infoRow}>
+                  <Ionicons name="person-outline" size={20} color="#666" />
+                  <Text style={styles.infoText}>
+                    {creator.gender.charAt(0).toUpperCase() + creator.gender.slice(1)}
+                  </Text>
+                </View>
+              )}
+
+              {creator.bio && (
+                <View style={styles.bioContainer}>
+                  <Text style={styles.sectionTitle}>Bio</Text>
+                  <Text style={styles.bioText}>{creator.bio}</Text>
+                </View>
+              )}
+
+              <View style={styles.interestsSection}>
+                <Text style={styles.sectionTitle}>Interests</Text>
+                {renderInterests()}
+              </View>
+            </View>
+          </ScrollView>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
 export default function EventsScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +226,7 @@ export default function EventsScreen() {
   const flatListRef = useRef<FlatList>(null);
   const isMounted = useRef(true);
   const { token, userId } = useAuth();
+  const [selectedCreator, setSelectedCreator] = useState<Event['creator'] | null>(null);
 
   const fetchEvents = useCallback(async () => {
     const controller = new AbortController();
@@ -181,9 +373,35 @@ export default function EventsScreen() {
       );
     };
 
+    const renderCreatorThumb = () => {
+      if (item.creator.pictures && item.creator.pictures.length > 0) {
+        return (
+          <Image
+            source={{ uri: `${API_URL}${item.creator.pictures[0].url}` }}
+            style={styles.creatorThumb}
+            defaultSource={require('../assets/default-avatar.png')}
+          />
+        );
+      }
+      return (
+        <View style={[styles.creatorThumb, styles.creatorThumbPlaceholder]}>
+          <Ionicons name="person" size={16} color="#666" />
+        </View>
+      );
+    };
+
     return (
       <View style={styles.eventCard}>
         <Text style={styles.eventTitle}>{item.title}</Text>
+        <TouchableOpacity 
+          style={styles.creatorInfo}
+          onPress={() => setSelectedCreator(item.creator)}
+        >
+          <View style={styles.creatorHeader}>
+            {renderCreatorThumb()}
+            <Text style={styles.creatorText}>Created by {item.creator.name}</Text>
+          </View>
+        </TouchableOpacity>
         <Text style={styles.eventDescription}>{item.description}</Text>
         
         <View style={styles.dateTimeInfo}>
@@ -235,7 +453,7 @@ export default function EventsScreen() {
           Created {new Date(item.createdAt).toLocaleDateString()}
         </Text>
 
-        {item.creator === userId && (
+        {item.creator.id === userId && (
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => handleDeletePress(item._id)}
@@ -282,6 +500,11 @@ export default function EventsScreen() {
             tintColor="#0000ff"
           />
         }
+      />
+      <CreatorModal
+        visible={!!selectedCreator}
+        creator={selectedCreator!}
+        onClose={() => setSelectedCreator(null)}
       />
     </View>
   );
@@ -410,5 +633,172 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  creatorInfo: {
+    marginBottom: 8,
+  },
+  creatorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  creatorThumb: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  creatorThumbPlaceholder: {
+    backgroundColor: '#e1e1e1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  creatorText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  creatorModal: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: Dimensions.get('window').height * 0.8,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  creatorModalContent: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#666',
+  },
+  creatorProfile: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  creatorPhoto: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 16,
+  },
+  creatorPhotoPlaceholder: {
+    backgroundColor: '#e1e1e1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  creatorName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  creatorEmail: {
+    fontSize: 16,
+    color: '#666',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+    paddingHorizontal: 16,
+  },
+  infoText: {
+    fontSize: 16,
+    color: '#666',
+    marginLeft: 8,
+  },
+  bioContainer: {
+    width: '100%',
+    padding: 16,
+    marginTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  bioText: {
+    fontSize: 16,
+    color: '#666',
+    lineHeight: 24,
+  },
+  interestsSection: {
+    width: '100%',
+    padding: 16,
+  },
+  interestsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  interestTag: {
+    backgroundColor: '#E1F5FE',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    margin: 4,
+  },
+  interestText: {
+    color: '#0288D1',
+  },
+  noInterests: {
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  sliderContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    marginBottom: 16,
+  },
+  imageWrapper: {
+    width: Dimensions.get('window').width,
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  sliderImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  paginationDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: 10,
+    width: '100%',
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    backgroundColor: '#fff',
   },
 }); 

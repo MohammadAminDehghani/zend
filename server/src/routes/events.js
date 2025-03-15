@@ -1,5 +1,6 @@
 const express = require('express');
 const Event = require('../models/Event');
+const User = require('../models/User');
 
 const router = express.Router();
 
@@ -47,7 +48,26 @@ router.post('/', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const events = await Event.find().sort({ startDate: 1 });
-    res.json(events);
+    
+    // Fetch creator details for all events
+    const eventsWithCreators = await Promise.all(events.map(async (event) => {
+      const creator = await User.findById(event.creator, 'name email pictures phone gender interests bio');
+      return {
+        ...event.toObject(),
+        creator: {
+          id: event.creator,
+          name: creator?.name || 'Unknown',
+          email: creator?.email || 'Unknown',
+          pictures: creator?.pictures || [],
+          phone: creator?.phone || '',
+          gender: creator?.gender || 'other',
+          interests: creator?.interests || [],
+          bio: creator?.bio || ''
+        }
+      };
+    }));
+    
+    res.json(eventsWithCreators);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching events', error: error.message });
   }

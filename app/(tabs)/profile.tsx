@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image, Platform } from 'react-native';
 import { useAuth } from '../context/auth';
 import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { API_URL } from '../config/api';
+import { API_URL, getImageUrl } from '../config/api';
 import * as ImagePicker from 'expo-image-picker';
 
 interface UserProfile {
@@ -150,22 +150,30 @@ export default function ProfileScreen() {
 
       if (!result.canceled) {
         const formData = new FormData();
+        
+        // Get file extension from URI
+        const fileExtension = result.assets[0].uri.split('.').pop() || 'jpg';
+        
         formData.append('pictures', {
           uri: result.assets[0].uri,
-          type: 'image/jpeg',
-          name: 'photo.jpg',
+          type: `image/${fileExtension}`,
+          name: `photo.${fileExtension}`,
         } as any);
 
         setIsUploadingImages(true);
+        
+        const config = {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+          timeout: 10000, // 10 second timeout
+        };
+
         const response = await axios.post(
           `${API_URL}/api/auth/profile/pictures`,
           formData,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'multipart/form-data',
-            },
-          }
+          config
         );
 
         setProfile(prev => ({
@@ -174,8 +182,16 @@ export default function ProfileScreen() {
         }));
       }
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to upload image');
       console.error('Error uploading image:', error);
+      let errorMessage = 'Failed to upload image';
+      if (error.response) {
+        // Server responded with error
+        errorMessage = error.response.data.message || errorMessage;
+      } else if (error.request) {
+        // Request made but no response
+        errorMessage = 'Network error. Please check your connection.';
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsUploadingImages(false);
     }
@@ -238,7 +254,7 @@ export default function ProfileScreen() {
         {profile.pictures?.map((picture, index) => (
           <View key={picture._id} style={styles.pictureWrapper}>
             <Image 
-              source={{ uri: `${API_URL}${picture.url}` }} 
+              source={{ uri: getImageUrl(picture.url) || undefined }} 
               style={styles.picture}
             />
             <TouchableOpacity
