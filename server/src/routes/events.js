@@ -19,7 +19,8 @@ router.post('/', async (req, res) => {
       repeatFrequency,
       repeatDays,
       tags,
-      status
+      status,
+      capacity
     } = req.body;
     const creator = req.user.userId;
     
@@ -36,7 +37,8 @@ router.post('/', async (req, res) => {
       repeatFrequency,
       repeatDays,
       tags,
-      status
+      status,
+      capacity
     });
 
     await event.save();
@@ -82,11 +84,26 @@ router.get('/managed', async (req, res) => {
     const currentUser = req.user.userId;
     const events = await Event.find({ creator: currentUser }).sort({ startDate: 1 });
     
-    // Fetch creator details for all events
-    const eventsWithCreators = await Promise.all(events.map(async (event) => {
+    // Fetch creator and participant details for all events
+    const eventsWithDetails = await Promise.all(events.map(async (event) => {
       const creator = await User.findById(event.creator, 'name email pictures phone gender interests bio');
+      
+      // Fetch user details for each participant
+      const participantsWithDetails = await Promise.all((event.participants || []).map(async (participant) => {
+        const user = await User.findById(participant.userId, 'name email pictures');
+        return {
+          ...participant.toObject(),
+          user: user ? {
+            name: user.name,
+            email: user.email,
+            pictures: user.pictures || []
+          } : undefined
+        };
+      }));
+
       return {
         ...event.toObject(),
+        participants: participantsWithDetails,
         creator: {
           id: event.creator,
           name: creator?.name || 'Unknown',
@@ -100,7 +117,7 @@ router.get('/managed', async (req, res) => {
       };
     }));
     
-    res.json(eventsWithCreators);
+    res.json(eventsWithDetails);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching managed events', error: error.message });
   }
@@ -211,6 +228,129 @@ router.delete('/:id', async (req, res) => {
     res.status(200).json({ message: 'Event deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting event', error: error.message });
+  }
+});
+
+// Join event
+router.post('/:id/join', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const userId = req.user.userId;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Check if user is already a participant
+    const participants = event.participants || [];
+    const existingParticipation = participants.find(p => p.userId === userId);
+    if (existingParticipation) {
+      return res.status(400).json({ message: 'You are already participating in this event' });
+    }
+
+    // For open events, check capacity
+    if (event.status === 'open') {
+      const approvedParticipants = participants.filter(p => p.status === 'approved').length;
+      if (approvedParticipants >= event.capacity) {
+        return res.status(400).json({ message: 'Event has reached its capacity' });
+      }
+    }
+
+    // Add participant with appropriate status
+    const participantStatus = event.status === 'open' ? 'approved' : 'pending';
+    event.participants = [...participants, { userId, status: participantStatus }];
+    
+    await event.save();
+    res.json(event);
+  } catch (error) {
+    res.status(500).json({ message: 'Error joining event', error: error.message });
+  }
+});
+
+// Leave event
+router.post('/:id/leave', async (req, res) => {
+  try {
+    const eventId = req.params.id;
+    const userId = req.user.userId;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Remove user from participants
+    const participants = event.participants || [];
+    event.participants = participants.filter(p => p.userId !== userId);
+    
+    await event.save();
+    res.json(event);
+  } catch (error) {
+    res.status(500).json({ message: 'Error leaving event', error: error.message });
+  }
+});
+
+// Accept join request
+router.post('/:id/accept-request', async (req, res) => {
+  try {
+    const { userId: participantId } = req.body;
+    const eventId = req.params.id;
+    const creatorId = req.user.userId;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Verify the user is the event creator
+    if (event.creator !== creatorId) {
+      return res.status(403).json({ message: 'Not authorized to manage requests' });
+    }
+
+    // Update participant status to approved
+    const participants = event.participants || [];
+    event.participants = participants.map(p => 
+      p.userId === participantId 
+        ? { ...p, status: 'approved' }
+        : p
+    );
+
+    await event.save();
+    res.json(event);
+  } catch (error) {
+    res.status(500).json({ message: 'Error accepting request', error: error.message });
+  }
+});
+
+// Reject join request
+router.post('/:id/reject-request', async (req, res) => {
+  try {
+    const { userId: participantId } = req.body;
+    const eventId = req.params.id;
+    const creatorId = req.user.userId;
+
+    const event = await Event.findById(eventId);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    // Verify the user is the event creator
+    if (event.creator !== creatorId) {
+      return res.status(403).json({ message: 'Not authorized to manage requests' });
+    }
+
+    // Update participant status to rejected
+    const participants = event.participants || [];
+    event.participants = participants.map(p => 
+      p.userId === participantId 
+        ? { ...p, status: 'rejected' }
+        : p
+    );
+
+    await event.save();
+    res.json(event);
+  } catch (error) {
+    res.status(500).json({ message: 'Error rejecting request', error: error.message });
   }
 });
 

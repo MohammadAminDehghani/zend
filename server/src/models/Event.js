@@ -36,6 +36,24 @@ const eventSchema = new mongoose.Schema({
     required: true,
     default: 'open'
   },
+  capacity: {
+    type: Number,
+    required: true,
+    min: 1,
+    max: 99,
+    default: 10
+  },
+  participants: [{
+    userId: {
+      type: String,
+      required: true
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      required: true
+    }
+  }],
   type: {
     type: String,
     enum: ['one-time', 'recurring'],

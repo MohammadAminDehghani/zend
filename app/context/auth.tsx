@@ -8,6 +8,9 @@ type AuthContextType = {
   isLoading: boolean;
   token: string | null;
   userId: string | null;
+  user: {
+    id: string;
+  };
   setToken: (token: string | null) => void;
   logout: () => Promise<void>;
 };
@@ -19,6 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [user, setUser] = useState<{ id: string | null }>({ id: null });
 
   const processToken = (token: string | null) => {
     if (token) {
@@ -26,12 +30,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const decoded = jwtDecode<{ userId: string }>(token);
         console.log('Decoded token:', decoded);
         setUserId(decoded.userId);
+        setUser({ id: decoded.userId });
       } catch (error) {
         console.error('Error decoding token:', error);
         setUserId(null);
+        setUser({ id: null });
       }
     } else {
       setUserId(null);
+      setUser({ id: null });
     }
   };
 
@@ -60,6 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await AsyncStorage.removeItem('userToken');
       setToken(null);
       setUserId(null);
+      setUser({ id: null });
       setIsAuthenticated(false);
     } catch (error) {
       console.error('Error during logout:', error);
@@ -80,6 +88,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         token,
         userId,
+        user,
         setToken: wrappedSetToken,
         logout
       }}

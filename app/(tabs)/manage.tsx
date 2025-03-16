@@ -33,6 +33,21 @@ interface Event {
     bio: string;
   };
   type: 'one-time' | 'recurring';
+  status: 'open' | 'verification_required';
+  capacity: number;
+  participants: Array<{
+    userId: string;
+    status: 'pending' | 'approved' | 'rejected';
+    user?: {
+      name: string;
+      email: string;
+      pictures: Array<{
+        url: string;
+        uploadedAt: string;
+        _id: string;
+      }>;
+    };
+  }>;
   locations: Location[];
   startDate: string;
   endDate?: string;
@@ -49,7 +64,7 @@ export default function ManageScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const isMounted = useRef(true);
-  const { token } = useAuth();
+  const { token, userId } = useAuth();
 
   const fetchEvents = useCallback(async () => {
     const controller = new AbortController();
@@ -71,9 +86,10 @@ export default function ManageScreen() {
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        return;
+        console.log('Fetch aborted');
+      } else {
+        console.error('Error fetching events:', error);
       }
-      console.error('Error fetching events:', error);
     } finally {
       if (isMounted.current) {
         setLoading(false);
@@ -85,6 +101,23 @@ export default function ManageScreen() {
       controller.abort();
     };
   }, [token]);
+
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+
+    const loadEvents = async () => {
+      cleanup = await fetchEvents();
+    };
+
+    loadEvents();
+
+    return () => {
+      isMounted.current = false;
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [fetchEvents]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -113,40 +146,97 @@ export default function ManageScreen() {
     }
   }, [token]);
 
-  useEffect(() => {
-    let cleanup: (() => void) | undefined;
-
-    const loadEvents = async () => {
-      cleanup = await fetchEvents();
-    };
-
-    loadEvents();
-
-    return () => {
-      isMounted.current = false;
-      if (cleanup) {
-        cleanup();
-      }
-    };
-  }, [fetchEvents]);
-
-  const handleDeletePress = useCallback((eventId: string) => {
-    Alert.alert(
-      'Delete Event',
-      'Are you sure you want to delete this event?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
+  const handleAcceptRequest = useCallback(async (eventId: string, userId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/events/${eventId}/accept-request`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
-        {
-          text: 'Delete',
-          onPress: () => deleteEvent(eventId),
-          style: 'destructive'
-        }
-      ]
+        body: JSON.stringify({ userId })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to accept request');
+      }
+
+      const updatedEvent = await response.json();
+      setEvents(prevEvents => 
+        prevEvents.map(event => 
+          event._id === eventId ? updatedEvent : event
+        )
+      );
+      Alert.alert('Success', 'Request accepted');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      Alert.alert('Error', errorMessage);
+    }
+  }, [token]);
+
+  const handleRejectRequest = useCallback(async (eventId: string, userId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/events/${eventId}/reject-request`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to reject request');
+      }
+
+      const updatedEvent = await response.json();
+      setEvents(prevEvents => 
+        prevEvents.map(event => 
+          event._id === eventId ? updatedEvent : event
+        )
+      );
+      Alert.alert('Success', 'Request rejected');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      Alert.alert('Error', errorMessage);
+    }
+  }, [token]);
+
+  const renderParticipantRequests = useCallback((item: Event) => {
+    const pendingRequests = (item.participants || []).filter(p => p.status === 'pending');
+    
+    if (pendingRequests.length === 0) return null;
+
+    return (
+      <View style={styles.requestsSection}>
+        <Text style={styles.requestsTitle}>Pending Requests ({pendingRequests.length})</Text>
+        {pendingRequests.map((participant, index) => (
+          <View key={index} style={styles.requestItem}>
+            <View style={styles.requestInfo}>
+              <Text style={styles.requestName}>{participant.user?.name || 'Unknown User'}</Text>
+              <Text style={styles.requestEmail}>{participant.user?.email}</Text>
+            </View>
+            <View style={styles.requestActions}>
+              <TouchableOpacity
+                style={[styles.requestButton, styles.acceptButton]}
+                onPress={() => handleAcceptRequest(item._id, participant.userId)}
+              >
+                <Ionicons name="checkmark" size={20} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.requestButton, styles.rejectButton]}
+                onPress={() => handleRejectRequest(item._id, participant.userId)}
+              >
+                <Ionicons name="close" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        ))}
+      </View>
     );
-  }, [deleteEvent]);
+  }, [handleAcceptRequest, handleRejectRequest]);
 
   const renderEvent = useCallback(({ item }: { item: Event }) => {
     if (!item || !item._id) return null;
@@ -169,7 +259,7 @@ export default function ManageScreen() {
 
     const renderTags = () => (
       <View style={styles.tagsContainer}>
-        {item.tags.map((tag, index) => (
+        {(item.tags || []).map((tag, index) => (
           <View key={index} style={styles.tag}>
             <Text style={styles.tagText}>{tag}</Text>
           </View>
@@ -201,6 +291,8 @@ export default function ManageScreen() {
         <Text style={styles.eventTitle}>{item.title}</Text>
         <Text style={styles.eventDescription}>{item.description}</Text>
         
+        {renderParticipantRequests(item)}
+        
         <View style={styles.dateTimeInfo}>
           <Text style={styles.dateTimeText}>
             {formatDate(item.startDate)}
@@ -211,8 +303,6 @@ export default function ManageScreen() {
         </View>
 
         {renderRecurringInfo()}
-
-        {renderTags()}
 
         <View style={styles.locationsContainer}>
           <Text style={styles.locationsTitle}>Locations:</Text>
@@ -266,7 +356,7 @@ export default function ManageScreen() {
 
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => handleDeletePress(item._id)}
+            onPress={() => deleteEvent(item._id)}
           >
             <Ionicons name="trash" size={20} color="#fff" />
             <Text style={styles.actionButtonText}>Delete</Text>
@@ -274,7 +364,7 @@ export default function ManageScreen() {
         </View>
       </View>
     );
-  }, [handleDeletePress]);
+  }, [deleteEvent, handleAcceptRequest, handleRejectRequest]);
 
   const keyExtractor = useCallback((item: Event) => item._id, []);
 
@@ -509,5 +599,55 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  requestsSection: {
+    marginTop: 16,
+    marginBottom: 12,
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+  },
+  requestsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  requestItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  requestInfo: {
+    flex: 1,
+  },
+  requestName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  requestEmail: {
+    fontSize: 12,
+    color: '#666',
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  requestButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+  },
+  rejectButton: {
+    backgroundColor: '#ff4444',
   },
 }); 

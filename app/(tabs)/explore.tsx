@@ -32,6 +32,12 @@ interface Event {
     bio: string;
   };
   type: 'one-time' | 'recurring';
+  status: 'open' | 'verification_required';
+  capacity: number;
+  participants: Array<{
+    userId: string;
+    status: 'pending' | 'approved' | 'rejected';
+  }>;
   locations: Location[];
   startDate: string;
   endDate?: string;
@@ -263,6 +269,23 @@ export default function EventsScreen() {
     };
   }, [token]);
 
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+
+    const loadEvents = async () => {
+      cleanup = await fetchEvents();
+    };
+
+    loadEvents();
+
+    return () => {
+      isMounted.current = false;
+      if (cleanup) {
+        cleanup();
+      }
+    };
+  }, [fetchEvents]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchEvents();
@@ -290,40 +313,134 @@ export default function EventsScreen() {
     }
   }, [token]);
 
-  useEffect(() => {
-    let cleanup: (() => void) | undefined;
+  const handleJoinEvent = useCallback(async (event: Event) => {
+    if (!userId) {
+      Alert.alert('Error', 'You must be logged in to join events');
+      return;
+    }
 
-    const loadEvents = async () => {
-      cleanup = await fetchEvents();
-    };
-
-    loadEvents();
-
-    return () => {
-      isMounted.current = false;
-      if (cleanup) {
-        cleanup();
-      }
-    };
-  }, [fetchEvents]);
-
-  const handleDeletePress = useCallback((eventId: string) => {
-    Alert.alert(
-      'Delete Event',
-      'Are you sure you want to delete this event?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel'
-        },
-        {
-          text: 'Delete',
-          onPress: () => deleteEvent(eventId),
-          style: 'destructive'
+    try {
+      // Check capacity for open events
+      if (event.status === 'open') {
+        const participants = event.participants || [];
+        const approvedParticipants = participants.filter(p => p.status === 'approved').length;
+        if (approvedParticipants >= (event.capacity || 0)) {
+          Alert.alert('Error', 'This event has reached its capacity');
+          return;
         }
-      ]
+      }
+
+      const response = await fetch(`${API_URL}/api/events/${event._id}/join`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to join event');
+      }
+
+      // Update local state
+      setEvents(prevEvents => prevEvents.map(e => {
+        if (e._id === event._id) {
+          const currentParticipants = e.participants || [];
+          return {
+            ...e,
+            participants: [...currentParticipants, {
+              userId,
+              status: event.status === 'open' ? 'approved' : 'pending'
+            }]
+          };
+        }
+        return e;
+      }));
+
+      Alert.alert(
+        'Success', 
+        event.status === 'open' 
+          ? 'You have successfully joined the event!' 
+          : 'Your join request has been submitted and is pending approval'
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      Alert.alert('Error', errorMessage);
+    }
+  }, [token, userId]);
+
+  const handleLeaveEvent = useCallback(async (eventId: string) => {
+    if (!userId) {
+      Alert.alert('Error', 'You must be logged in to leave events');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/events/${eventId}/leave`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to leave event');
+      }
+
+      // Update local state
+      setEvents(prevEvents => prevEvents.map(e => {
+        if (e._id === eventId) {
+          const currentParticipants = e.participants || [];
+          return {
+            ...e,
+            participants: currentParticipants.filter(p => p.userId !== userId)
+          };
+        }
+        return e;
+      }));
+
+      Alert.alert('Success', 'You have left the event');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      Alert.alert('Error', errorMessage);
+    }
+  }, [token, userId]);
+
+  const renderParticipationButton = useCallback((event: Event) => {
+    // Don't show join/leave buttons for events created by the current user
+    if (event.creator.id === userId) {
+      return null;
+    }
+
+    const participants = event.participants || [];
+    const userParticipation = participants.find(p => p.userId === userId);
+    
+    if (userParticipation) {
+      return (
+        <TouchableOpacity
+          style={[styles.actionButton, styles.leaveButton]}
+          onPress={() => handleLeaveEvent(event._id)}
+        >
+          <Ionicons name="exit" size={20} color="#fff" />
+          <Text style={styles.actionButtonText}>
+            {userParticipation.status === 'pending' ? 'Cancel Request' : 'Leave Event'}
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <TouchableOpacity
+        style={[styles.actionButton, styles.joinButton]}
+        onPress={() => handleJoinEvent(event)}
+      >
+        <Ionicons name="enter" size={20} color="#fff" />
+        <Text style={styles.actionButtonText}>Join Event</Text>
+      </TouchableOpacity>
     );
-  }, [deleteEvent]);
+  }, [handleJoinEvent, handleLeaveEvent, userId]);
 
   const renderEvent = useCallback(({ item }: { item: Event }) => {
     if (!item || !item._id) return null;
@@ -390,6 +507,10 @@ export default function EventsScreen() {
       );
     };
 
+    const participants = item.participants || [];
+    const approvedParticipants = participants.filter(p => p.status === 'approved').length;
+    const isFull = approvedParticipants >= (item.capacity || 0);
+
     return (
       <View style={styles.eventCard}>
         <Text style={styles.eventTitle}>{item.title}</Text>
@@ -414,6 +535,29 @@ export default function EventsScreen() {
         </View>
 
         {renderRecurringInfo()}
+
+        <View style={styles.eventStatus}>
+          <View style={styles.statusContainer}>
+            <Text style={styles.statusLabel}>Status:</Text>
+            <View style={[
+              styles.statusBadge,
+              item.status === 'open' ? styles.openStatusBadge : styles.verificationStatusBadge
+            ]}>
+              <Text style={styles.statusBadgeText}>
+                {item.status === 'open' ? 'Open' : 'Verification Required'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.capacityContainer}>
+            <Text style={styles.capacityLabel}>Capacity:</Text>
+            <Text style={[
+              styles.capacityText,
+              isFull ? styles.capacityFull : styles.capacityAvailable
+            ]}>
+              {approvedParticipants}/{item.capacity}
+            </Text>
+          </View>
+        </View>
 
         {renderTags()}
 
@@ -453,17 +597,20 @@ export default function EventsScreen() {
           Created {new Date(item.createdAt).toLocaleDateString()}
         </Text>
 
-        {item.creator.id === userId && (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleDeletePress(item._id)}
-          >
-            <Text style={styles.deleteButtonText}>Delete</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.actionButtons}>
+          {renderParticipationButton(item)}
+          {item.creator.id === userId && (
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => deleteEvent(item._id)}
+            >
+              <Text style={styles.deleteButtonText}>Delete</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
-  }, [userId, handleDeletePress]);
+  }, [userId, deleteEvent, renderParticipationButton, setSelectedCreator]);
 
   const keyExtractor = useCallback((item: Event) => item._id, []);
 
@@ -800,5 +947,80 @@ const styles = StyleSheet.create({
   },
   paginationDotActive: {
     backgroundColor: '#fff',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 12,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    gap: 4,
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  joinButton: {
+    backgroundColor: '#4CAF50',
+  },
+  leaveButton: {
+    backgroundColor: '#ff9800',
+  },
+  eventStatus: {
+    backgroundColor: '#f5f5f5',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  capacityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 8,
+  },
+  capacityLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  openStatusBadge: {
+    backgroundColor: '#e8f5e9',
+  },
+  verificationStatusBadge: {
+    backgroundColor: '#fff3e0',
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  capacityText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  capacityAvailable: {
+    color: '#4caf50',
+  },
+  capacityFull: {
+    color: '#f44336',
   },
 }); 
