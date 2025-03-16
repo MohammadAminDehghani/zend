@@ -13,6 +13,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="explore"
+        options={{
+          title: 'Explore',
+          tabBarIcon: ({ color }) => <FontAwesome name="compass" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="add"
         options={{
           title: 'Add',
@@ -20,17 +27,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="saved"
+        name="manage"
         options={{
-          title: 'Saved',
-          tabBarIcon: ({ color }) => <FontAwesome name="bookmark" size={24} color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="events"
-        options={{
-          title: 'Events',
-          tabBarIcon: ({ color }) => <FontAwesome name="calendar" size={24} color={color} />,
+          title: 'Manage',
+          tabBarIcon: ({ color }) => <FontAwesome name="tasks" size={24} color={color} />,
         }}
       />
       <Tabs.Screen

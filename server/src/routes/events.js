@@ -46,10 +46,11 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get all events
+// Get all events (for explore - events created by others)
 router.get('/', async (req, res) => {
   try {
-    const events = await Event.find().sort({ startDate: 1 });
+    const currentUser = req.user.userId;
+    const events = await Event.find({ creator: { $ne: currentUser } }).sort({ startDate: 1 });
     
     // Fetch creator details for all events
     const eventsWithCreators = await Promise.all(events.map(async (event) => {
@@ -72,6 +73,36 @@ router.get('/', async (req, res) => {
     res.json(eventsWithCreators);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching events', error: error.message });
+  }
+});
+
+// Get managed events (events created by current user)
+router.get('/managed', async (req, res) => {
+  try {
+    const currentUser = req.user.userId;
+    const events = await Event.find({ creator: currentUser }).sort({ startDate: 1 });
+    
+    // Fetch creator details for all events
+    const eventsWithCreators = await Promise.all(events.map(async (event) => {
+      const creator = await User.findById(event.creator, 'name email pictures phone gender interests bio');
+      return {
+        ...event.toObject(),
+        creator: {
+          id: event.creator,
+          name: creator?.name || 'Unknown',
+          email: creator?.email || 'Unknown',
+          pictures: creator?.pictures || [],
+          phone: creator?.phone || '',
+          gender: creator?.gender || 'other',
+          interests: creator?.interests || [],
+          bio: creator?.bio || ''
+        }
+      };
+    }));
+    
+    res.json(eventsWithCreators);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching managed events', error: error.message });
   }
 });
 
