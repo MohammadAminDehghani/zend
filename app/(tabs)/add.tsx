@@ -35,6 +35,7 @@ interface EventForm {
   repeatDays?: string[];
   tags: string[];
   capacity: number;
+  status: 'open' | 'verification_required';
 }
 
 export default function AddScreen() {
@@ -47,7 +48,8 @@ export default function AddScreen() {
     startTime: '09:00',
     endTime: '17:00',
     tags: [],
-    capacity: 10
+    capacity: 10,
+    status: 'open'
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
@@ -164,7 +166,8 @@ export default function AddScreen() {
         startTime: '09:00',
         endTime: '17:00',
         tags: [],
-        capacity: 10
+        capacity: 10,
+        status: 'open'
       });
       setCurrentLocation(null);
       setLocationName('');
@@ -472,6 +475,48 @@ export default function AddScreen() {
     </View>
   );
 
+  const renderEventStatus = () => (
+    <View style={styles.eventStatusSection}>
+      <Text style={styles.sectionTitle}>Event Access</Text>
+      <View style={styles.eventStatusButtons}>
+        <TouchableOpacity
+          style={[
+            styles.eventStatusButton,
+            form.status === 'open' && styles.eventStatusButtonActive
+          ]}
+          onPress={() => setForm(prev => ({ ...prev, status: 'open' }))}
+        >
+          <Text style={[
+            styles.eventStatusButtonText,
+            form.status === 'open' && styles.eventStatusButtonTextActive
+          ]}>
+            Open Access
+          </Text>
+          <Text style={styles.eventStatusDescription}>
+            Anyone can join this event
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.eventStatusButton,
+            form.status === 'verification_required' && styles.eventStatusButtonActive
+          ]}
+          onPress={() => setForm(prev => ({ ...prev, status: 'verification_required' }))}
+        >
+          <Text style={[
+            styles.eventStatusButtonText,
+            form.status === 'verification_required' && styles.eventStatusButtonTextActive
+          ]}>
+            Verification Required
+          </Text>
+          <Text style={styles.eventStatusDescription}>
+            Creator must approve join requests
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   return (
     <ScrollView 
       ref={scrollViewRef}
@@ -560,6 +605,8 @@ export default function AddScreen() {
       {renderTags()}
 
       {renderCapacity()}
+
+      {renderEventStatus()}
 
       <TouchableOpacity 
         style={[styles.button, styles.submitButton]} 
@@ -894,5 +941,37 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '500',
     marginHorizontal: 10,
+  },
+  eventStatusSection: {
+    marginBottom: 20,
+  },
+  eventStatusButtons: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  eventStatusButton: {
+    padding: 15,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 5,
+    alignItems: 'flex-start',
+  },
+  eventStatusButtonActive: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  eventStatusButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#666',
+    marginBottom: 4,
+  },
+  eventStatusButtonTextActive: {
+    color: '#fff',
+  },
+  eventStatusDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
 }); 

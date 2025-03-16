@@ -30,6 +30,12 @@ const eventSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  status: {
+    type: String,
+    enum: ['open', 'verification_required'],
+    required: true,
+    default: 'open'
+  },
   type: {
     type: String,
     enum: ['one-time', 'recurring'],

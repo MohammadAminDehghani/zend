@@ -18,7 +18,8 @@ router.post('/', async (req, res) => {
       endTime,
       repeatFrequency,
       repeatDays,
-      tags 
+      tags,
+      status
     } = req.body;
     const creator = req.user.userId;
     
@@ -34,7 +35,8 @@ router.post('/', async (req, res) => {
       endTime,
       repeatFrequency,
       repeatDays,
-      tags
+      tags,
+      status
     });
 
     await event.save();
