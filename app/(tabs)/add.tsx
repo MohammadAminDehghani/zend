@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert, ScrollView, Dimensions, Platform, PanResponder, Animated } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { API_URL } from '../config/api';
 import { useAuth } from '../context/auth';
 import MapView, { Marker, MapPressEvent, PROVIDER_GOOGLE } from 'react-native-maps';
@@ -39,6 +39,7 @@ interface EventForm {
 }
 
 export default function AddScreen() {
+  const { eventId } = useLocalSearchParams<{ eventId: string }>();
   const [form, setForm] = useState<EventForm>({
     title: '',
     description: '',
@@ -62,6 +63,47 @@ export default function AddScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<'granted' | 'denied' | 'pending'>('pending');
+
+  // Load event data if editing
+  useEffect(() => {
+    const loadEvent = async () => {
+      if (!eventId) return;
+
+      try {
+        const response = await fetch(`${API_URL}/api/events/${eventId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch event');
+        }
+
+        const event = await response.json();
+        setForm({
+          title: event.title || '',
+          description: event.description || '',
+          type: event.type || 'one-time',
+          locations: event.locations || [],
+          startDate: event.startDate ? new Date(event.startDate) : new Date(),
+          endDate: event.endDate ? new Date(event.endDate) : undefined,
+          startTime: event.startTime || '09:00',
+          endTime: event.endTime || '17:00',
+          repeatFrequency: event.repeatFrequency,
+          repeatDays: event.repeatDays || [],
+          tags: event.tags || [],
+          capacity: typeof event.capacity === 'number' ? event.capacity : 10,
+          status: event.status || 'open'
+        });
+      } catch (error) {
+        console.error('Error loading event:', error);
+        Alert.alert('Error', 'Failed to load event details');
+      }
+    };
+
+    loadEvent();
+  }, [eventId, token]);
 
   useEffect(() => {
     (async () => {
@@ -141,8 +183,14 @@ export default function AddScreen() {
         type: form.type
       };
 
-      const response = await fetch(`${API_URL}/api/events`, {
-        method: 'POST',
+      const url = eventId 
+        ? `${API_URL}/api/events/${eventId}`
+        : `${API_URL}/api/events`;
+
+      const method = eventId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
@@ -153,7 +201,7 @@ export default function AddScreen() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to create event');
+        throw new Error(data.message || `Failed to ${eventId ? 'update' : 'create'} event`);
       }
 
       // Reset form
@@ -172,10 +220,10 @@ export default function AddScreen() {
       setCurrentLocation(null);
       setLocationName('');
       
-      Alert.alert('Success', 'Event created successfully', [
+      Alert.alert('Success', `Event ${eventId ? 'updated' : 'created'} successfully`, [
         {
           text: 'OK',
-          onPress: () => router.replace('/(tabs)/events'),
+          onPress: () => router.replace('/(tabs)/manage'),
         },
       ]);
     } catch (error) {
@@ -446,14 +494,14 @@ export default function AddScreen() {
           style={styles.capacityButton}
           onPress={() => setForm(prev => ({
             ...prev,
-            capacity: Math.max(1, prev.capacity - 1)
+            capacity: Math.max(1, (prev.capacity || 10) - 1)
           }))}
         >
           <Ionicons name="remove" size={24} color="#666" />
         </TouchableOpacity>
         <TextInput
           style={styles.capacityInput}
-          value={form.capacity.toString()}
+          value={String(form.capacity || 10)}
           keyboardType="number-pad"
           onChangeText={(text) => {
             const num = parseInt(text);
@@ -466,7 +514,7 @@ export default function AddScreen() {
           style={styles.capacityButton}
           onPress={() => setForm(prev => ({
             ...prev,
-            capacity: Math.min(99, prev.capacity + 1)
+            capacity: Math.min(99, (prev.capacity || 10) + 1)
           }))}
         >
           <Ionicons name="add" size={24} color="#666" />
@@ -523,6 +571,9 @@ export default function AddScreen() {
       style={styles.container}
       scrollEnabled={draggingLocationIndex === null}
     >
+      <View style={styles.header}>
+        <Text style={styles.title}>{eventId ? 'Edit Event' : 'Create Event'}</Text>
+      </View>
       <TextInput
         style={styles.input}
         placeholder="Event Title"
@@ -613,7 +664,7 @@ export default function AddScreen() {
         onPress={handleSubmit}
         disabled={!form.title || !form.description || form.locations.length === 0}
       >
-        <Text style={styles.buttonText}>Create Event</Text>
+        <Text style={styles.buttonText}>{eventId ? 'Update Event' : 'Create Event'}</Text>
       </TouchableOpacity>
 
       {showDatePicker && (
@@ -973,5 +1024,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 2,
+  },
+  header: {
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
 }); 

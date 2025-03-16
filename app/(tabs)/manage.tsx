@@ -254,8 +254,10 @@ export default function ManageScreen() {
           <TouchableOpacity
             style={[styles.actionButton, styles.editButton]}
             onPress={() => {
-              // TODO: Implement edit functionality
-              Alert.alert('Coming Soon', 'Edit functionality will be available soon');
+              router.push({
+                pathname: '/(tabs)/add',
+                params: { eventId: item._id }
+              });
             }}
           >
             <Ionicons name="pencil" size={20} color="#fff" />

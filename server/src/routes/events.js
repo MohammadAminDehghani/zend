@@ -106,6 +106,93 @@ router.get('/managed', async (req, res) => {
   }
 });
 
+// Get single event
+router.get('/:id', async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    const creator = await User.findById(event.creator, 'name email pictures phone gender interests bio');
+    const eventWithCreator = {
+      ...event.toObject(),
+      creator: {
+        id: event.creator,
+        name: creator?.name || 'Unknown',
+        email: creator?.email || 'Unknown',
+        pictures: creator?.pictures || [],
+        phone: creator?.phone || '',
+        gender: creator?.gender || 'other',
+        interests: creator?.interests || [],
+        bio: creator?.bio || ''
+      }
+    };
+
+    res.json(eventWithCreator);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching event', error: error.message });
+  }
+});
+
+// Update event
+router.put('/:id', async (req, res) => {
+  try {
+    const creator = req.user.userId;
+    const eventId = req.params.id;
+
+    // Check if event exists and user is the creator
+    const existingEvent = await Event.findById(eventId);
+    if (!existingEvent) {
+      return res.status(404).json({ message: 'Event not found' });
+    }
+
+    if (existingEvent.creator !== creator) {
+      return res.status(403).json({ message: 'Not authorized to update this event' });
+    }
+
+    const { 
+      title, 
+      description, 
+      type, 
+      locations, 
+      startDate, 
+      endDate, 
+      startTime, 
+      endTime,
+      repeatFrequency,
+      repeatDays,
+      tags,
+      status,
+      capacity
+    } = req.body;
+
+    const updatedEvent = await Event.findByIdAndUpdate(
+      eventId,
+      {
+        title,
+        description,
+        type,
+        locations,
+        startDate: new Date(startDate),
+        endDate: endDate ? new Date(endDate) : undefined,
+        startTime,
+        endTime,
+        repeatFrequency,
+        repeatDays,
+        tags,
+        status,
+        capacity
+      },
+      { new: true }
+    );
+
+    res.json(updatedEvent);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating event', error: error.message });
+  }
+});
+
 // Delete event
 router.delete('/:id', async (req, res) => {
   try {
