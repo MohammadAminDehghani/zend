@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "cross-env NODE_ENV=test jest --detectOpenHandles"
+    "test": "cross-env NODE_ENV=test jest --detectOpenHandles",
+    "seed": "node src/scripts/seedTestData.js",
+    "seed:clear": "node src/scripts/seedTestData.js --clear"
   },
   "keywords": [],
   "author": "",

@@ -418,15 +418,31 @@ export default function EventsScreen() {
     const userParticipation = participants.find(p => p.userId === userId);
     
     if (userParticipation) {
+      if (userParticipation.status === 'rejected') {
+        return (
+          <View style={[styles.actionButton, styles.rejectedButton]}>
+            <Ionicons name="close-circle" size={20} color="#fff" />
+            <Text style={styles.actionButtonText}>Rejected</Text>
+          </View>
+        );
+      }
+      
+      if (userParticipation.status === 'approved') {
+        return (
+          <View style={[styles.actionButton, styles.approvedButton]}>
+            <Ionicons name="checkmark-circle" size={20} color="#fff" />
+            <Text style={styles.actionButtonText}>Approved</Text>
+          </View>
+        );
+      }
+
       return (
         <TouchableOpacity
           style={[styles.actionButton, styles.leaveButton]}
           onPress={() => handleLeaveEvent(event._id)}
         >
           <Ionicons name="exit" size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>
-            {userParticipation.status === 'pending' ? 'Cancel Request' : 'Leave Event'}
-          </Text>
+          <Text style={styles.actionButtonText}>Cancel Request</Text>
         </TouchableOpacity>
       );
     }
@@ -507,9 +523,57 @@ export default function EventsScreen() {
       );
     };
 
-    const participants = item.participants || [];
-    const approvedParticipants = participants.filter(p => p.status === 'approved').length;
-    const isFull = approvedParticipants >= (item.capacity || 0);
+    const renderEventStatus = () => {
+      const participants = item.participants || [];
+      const approvedParticipants = participants.filter(p => p.status === 'approved').length;
+      const userParticipation = participants.find(p => p.userId === userId);
+      const isFull = approvedParticipants >= (item.capacity || 0);
+
+      return (
+        <View style={styles.eventStatus}>
+          <View style={styles.statusContainer}>
+            <Text style={styles.statusLabel}>Status:</Text>
+            <View style={[
+              styles.statusBadge,
+              item.status === 'open' ? styles.openStatusBadge : styles.verificationStatusBadge,
+              userParticipation?.status === 'rejected' && styles.rejectedStatusBadge,
+              userParticipation?.status === 'approved' && styles.approvedStatusBadge
+            ]}>
+              <Text style={[
+                styles.statusBadgeText,
+                userParticipation?.status === 'rejected' && styles.rejectedStatusText,
+                userParticipation?.status === 'approved' && styles.approvedStatusText
+              ]}>
+                {userParticipation?.status === 'rejected' 
+                  ? 'Rejected'
+                  : userParticipation?.status === 'approved'
+                  ? 'Approved'
+                  : item.status === 'open' ? 'Open' : 'Verification Required'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.capacityContainer}>
+            <Text style={styles.capacityLabel}>Capacity:</Text>
+            <Text style={[
+              styles.capacityText,
+              isFull ? styles.capacityFull : styles.capacityAvailable
+            ]}>
+              {approvedParticipants}/{item.capacity}
+            </Text>
+          </View>
+          {userParticipation?.status === 'rejected' && (
+            <Text style={styles.rejectionNote}>
+              Your request to join this event was rejected
+            </Text>
+          )}
+          {userParticipation?.status === 'approved' && (
+            <Text style={styles.approvalNote}>
+              You have been approved to join this event
+            </Text>
+          )}
+        </View>
+      );
+    };
 
     return (
       <View style={styles.eventCard}>
@@ -536,30 +600,7 @@ export default function EventsScreen() {
 
         {renderRecurringInfo()}
 
-        <View style={styles.eventStatus}>
-          <View style={styles.statusContainer}>
-            <Text style={styles.statusLabel}>Status:</Text>
-            <View style={[
-              styles.statusBadge,
-              item.status === 'open' ? styles.openStatusBadge : styles.verificationStatusBadge
-            ]}>
-              <Text style={styles.statusBadgeText}>
-                {item.status === 'open' ? 'Open' : 'Verification Required'}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.capacityContainer}>
-            <Text style={styles.capacityLabel}>Capacity:</Text>
-            <Text style={[
-              styles.capacityText,
-              isFull ? styles.capacityFull : styles.capacityAvailable
-            ]}>
-              {approvedParticipants}/{item.capacity}
-            </Text>
-          </View>
-        </View>
-
-        {renderTags()}
+        {renderEventStatus()}
 
         <View style={styles.locationsContainer}>
           <Text style={styles.locationsTitle}>Locations:</Text>
@@ -1022,5 +1063,37 @@ const styles = StyleSheet.create({
   },
   capacityFull: {
     color: '#f44336',
+  },
+  rejectedButton: {
+    backgroundColor: '#f44336',
+    opacity: 0.8,
+  },
+  rejectedStatusBadge: {
+    backgroundColor: '#ffebee',
+  },
+  rejectedStatusText: {
+    color: '#d32f2f',
+  },
+  rejectionNote: {
+    color: '#d32f2f',
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 8,
+  },
+  approvedButton: {
+    backgroundColor: '#4CAF50',
+    opacity: 0.8,
+  },
+  approvedStatusBadge: {
+    backgroundColor: '#e8f5e9',
+  },
+  approvedStatusText: {
+    color: '#2e7d32',
+  },
+  approvalNote: {
+    color: '#2e7d32',
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 8,
   },
 }); 
