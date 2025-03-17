@@ -242,6 +242,11 @@ router.post('/:id/join', async (req, res) => {
       return res.status(404).json({ message: 'Event not found' });
     }
 
+    // Check if user is the creator
+    if (event.creator.toString() === userId) {
+      return res.status(400).json({ message: 'You cannot join your own event' });
+    }
+
     // Check if user is already a participant
     const participants = event.participants || [];
     const existingParticipation = participants.find(p => p.userId === userId);
@@ -249,18 +254,29 @@ router.post('/:id/join', async (req, res) => {
       return res.status(400).json({ message: 'You are already participating in this event' });
     }
 
-    // For open events, check capacity
-    if (event.status === 'open') {
-      const approvedParticipants = participants.filter(p => p.status === 'approved').length;
-      if (approvedParticipants >= event.capacity) {
-        return res.status(400).json({ message: 'Event has reached its capacity' });
-      }
+    // Count approved participants and check capacity
+    const approvedParticipants = participants.filter(p => p.status === 'approved').length;
+    const pendingParticipants = participants.filter(p => p.status === 'pending').length;
+    
+    // For open events, check current capacity including pending
+    if (event.status === 'open' && approvedParticipants >= event.capacity) {
+      return res.status(400).json({ message: 'Event has reached maximum capacity' });
+    }
+    
+    // For verification_required events, check potential capacity including pending
+    if (event.status === 'verification_required' && (approvedParticipants + pendingParticipants) >= event.capacity) {
+      return res.status(400).json({ message: 'Event has reached maximum capacity including pending requests' });
     }
 
-    // Add participant with appropriate status
-    const participantStatus = event.status === 'open' ? 'approved' : 'pending';
-    event.participants = [...participants, { userId, status: participantStatus }];
-    
+    // Add user as participant
+    event.participants = [
+      ...participants,
+      {
+        userId,
+        status: event.status === 'verification_required' ? 'pending' : 'approved'
+      }
+    ];
+
     await event.save();
     res.json(event);
   } catch (error) {
