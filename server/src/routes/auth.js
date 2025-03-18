@@ -216,4 +216,27 @@ router.delete('/profile/pictures/:pictureId', authMiddleware, async (req, res) =
   }
 });
 
+// Get user by ID
+router.get('/:id', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      phone: user.phone,
+      gender: user.gender,
+      interests: user.interests,
+      bio: user.bio,
+      pictures: user.pictures || []
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching user details', error: error.message });
+  }
+});
+
 module.exports = router; 

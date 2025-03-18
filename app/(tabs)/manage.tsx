@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, Dimensions, Modal, Image, ScrollView, Animated } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { API_URL } from '../config/api';
 import { useAuth } from '../context/auth';
@@ -58,6 +58,231 @@ interface Event {
   tags: string[];
 }
 
+interface UserDetailsModalProps {
+  visible: boolean;
+  userId: string;
+  onClose: () => void;
+}
+
+const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, onClose }) => {
+  const [userDetails, setUserDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
+  const { token } = useAuth();
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      fetchUserDetails();
+      Animated.spring(slideAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+      // Reset state when modal closes
+      setUserDetails(null);
+      setError(null);
+      setActiveSlide(0);
+    }
+  }, [visible, userId]);
+
+  const fetchUserDetails = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`${API_URL}/api/auth/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch user details');
+      }
+      const data = await response.json();
+      setUserDetails(data);
+    } catch (error) {
+      console.error('Error fetching user details:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load user details');
+      Alert.alert('Error', 'Failed to load user details. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderPaginationDots = () => {
+    if (!userDetails?.pictures || userDetails.pictures.length <= 1) return null;
+
+    return (
+      <View style={styles.paginationDots}>
+        {userDetails.pictures.map((_: any, index: number) => (
+          <View
+            key={index}
+            style={[
+              styles.paginationDot,
+              index === activeSlide && styles.paginationDotActive,
+            ]}
+          />
+        ))}
+      </View>
+    );
+  };
+
+  const renderUserPhotos = () => {
+    if (!userDetails?.pictures || userDetails.pictures.length === 0) {
+      return (
+        <View style={[styles.userPhoto, styles.userPhotoPlaceholder]}>
+          <Ionicons name="person" size={60} color="#666" />
+        </View>
+      );
+    }
+
+    const imageSize = Math.min(Dimensions.get('window').width, Dimensions.get('window').width);
+
+    return (
+      <View style={styles.sliderContainer}>
+        <FlatList
+          ref={flatListRef}
+          data={userDetails.pictures}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(event) => {
+            const currentIndex = Math.floor(
+              event.nativeEvent.contentOffset.x / imageSize
+            );
+            setActiveSlide(currentIndex);
+          }}
+          renderItem={({ item }) => (
+            <View style={styles.imageWrapper}>
+              <Image
+                source={{ uri: `${API_URL}${item.url}` }}
+                style={styles.sliderImage}
+                defaultSource={require('../assets/default-avatar.png')}
+              />
+            </View>
+          )}
+          keyExtractor={(item) => item._id}
+        />
+        {renderPaginationDots()}
+      </View>
+    );
+  };
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <TouchableOpacity
+          style={[
+            styles.userModal,
+            {
+              transform: [
+                {
+                  translateY: slideAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [300, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>User Details</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Text style={styles.closeButtonText}>×</Text>
+            </TouchableOpacity>
+          </View>
+
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#0000ff" />
+              <Text style={styles.loadingText}>Loading user details...</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={48} color="#ff4444" />
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity
+                style={styles.retryButton}
+                onPress={fetchUserDetails}
+              >
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : userDetails ? (
+            <ScrollView style={styles.userModalContent}>
+              <View style={styles.userProfile}>
+                {renderUserPhotos()}
+                
+                <Text style={styles.userName}>{userDetails.name}</Text>
+                <Text style={styles.userEmail}>{userDetails.email}</Text>
+
+                {userDetails.phone && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="call-outline" size={20} color="#666" />
+                    <Text style={styles.infoText}>{userDetails.phone}</Text>
+                  </View>
+                )}
+
+                {userDetails.gender && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="person-outline" size={20} color="#666" />
+                    <Text style={styles.infoText}>
+                      {userDetails.gender.charAt(0).toUpperCase() + userDetails.gender.slice(1)}
+                    </Text>
+                  </View>
+                )}
+
+                {userDetails.bio && (
+                  <View style={styles.bioContainer}>
+                    <Text style={styles.sectionTitle}>Bio</Text>
+                    <Text style={styles.bioText}>{userDetails.bio}</Text>
+                  </View>
+                )}
+
+                {userDetails.interests && userDetails.interests.length > 0 && (
+                  <View style={styles.interestsSection}>
+                    <Text style={styles.sectionTitle}>Interests</Text>
+                    <View style={styles.interestsContainer}>
+                      {userDetails.interests.map((interest: string, index: number) => (
+                        <View key={index} style={styles.interestTag}>
+                          <Text style={styles.interestText}>{interest}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          ) : null}
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
 export default function ManageScreen() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,6 +290,7 @@ export default function ManageScreen() {
   const flatListRef = useRef<FlatList>(null);
   const isMounted = useRef(true);
   const { token, userId } = useAuth();
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const fetchEvents = useCallback(async () => {
     const controller = new AbortController();
@@ -214,10 +440,13 @@ export default function ManageScreen() {
         <Text style={styles.requestsTitle}>Pending Requests ({pendingRequests.length})</Text>
         {pendingRequests.map((participant, index) => (
           <View key={index} style={styles.requestItem}>
-            <View style={styles.requestInfo}>
+            <TouchableOpacity 
+              style={styles.requestInfo}
+              onPress={() => setSelectedUserId(participant.userId)}
+            >
               <Text style={styles.requestName}>{participant.user?.name || 'Unknown User'}</Text>
               <Text style={styles.requestEmail}>{participant.user?.email}</Text>
-            </View>
+            </TouchableOpacity>
             <View style={styles.requestActions}>
               <TouchableOpacity
                 style={[styles.requestButton, styles.acceptButton]}
@@ -423,6 +652,11 @@ export default function ManageScreen() {
           }
         />
       )}
+      <UserDetailsModal
+        visible={!!selectedUserId}
+        userId={selectedUserId || ''}
+        onClose={() => setSelectedUserId(null)}
+      />
     </View>
   );
 }
@@ -623,6 +857,7 @@ const styles = StyleSheet.create({
   },
   requestInfo: {
     flex: 1,
+    padding: 8,
   },
   requestName: {
     fontSize: 14,
@@ -649,5 +884,180 @@ const styles = StyleSheet.create({
   },
   rejectButton: {
     backgroundColor: '#ff4444',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  userModal: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: Dimensions.get('window').height * 0.8,
+    width: '100%',
+    overflow: 'hidden',
+  },
+  userModalContent: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#666',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  retryButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#ff4444',
+    fontSize: 16,
+  },
+  userProfile: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  userPhoto: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 16,
+  },
+  userPhotoPlaceholder: {
+    backgroundColor: '#e1e1e1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  userEmail: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 4,
+    paddingHorizontal: 16,
+  },
+  infoText: {
+    fontSize: 16,
+    color: '#666',
+    marginLeft: 8,
+  },
+  bioContainer: {
+    width: '100%',
+    padding: 16,
+    marginTop: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  bioText: {
+    fontSize: 16,
+    color: '#666',
+    lineHeight: 24,
+  },
+  interestsSection: {
+    width: '100%',
+    padding: 16,
+  },
+  interestsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  interestTag: {
+    backgroundColor: '#E1F5FE',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    margin: 4,
+  },
+  interestText: {
+    color: '#0288D1',
+  },
+  sliderContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    marginBottom: 16,
+  },
+  imageWrapper: {
+    width: Dimensions.get('window').width,
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  sliderImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'contain',
+  },
+  paginationDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: 10,
+    width: '100%',
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    marginHorizontal: 4,
+  },
+  paginationDotActive: {
+    backgroundColor: '#fff',
   },
 }); 

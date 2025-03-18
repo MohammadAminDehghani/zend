@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_URL, getImageUrl } from '../config/api';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 
 interface UserProfile {
   id?: string;
@@ -141,22 +142,41 @@ export default function ProfileScreen() {
     }
 
     try {
+      // Request permission first
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please grant permission to access your photos');
+        return;
+      }
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 0.8,
+        quality: 0.7, // Slightly reduced quality for better performance
+        exif: false, // Don't include EXIF data
+        base64: false, // Don't include base64 data
       });
 
       if (!result.canceled) {
+        const asset = result.assets[0];
+        
+        // Validate file size (max 5MB)
+        const fileResponse = await fetch(asset.uri);
+        const blob = await fileResponse.blob();
+        if (blob.size > 5 * 1024 * 1024) {
+          Alert.alert('File Too Large', 'Please select an image under 5MB');
+          return;
+        }
+
+        // Get file extension and mime type
+        const fileExtension = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
+        const mimeType = `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
+
         const formData = new FormData();
-        
-        // Get file extension from URI
-        const fileExtension = result.assets[0].uri.split('.').pop() || 'jpg';
-        
         formData.append('pictures', {
-          uri: result.assets[0].uri,
-          type: `image/${fileExtension}`,
+          uri: asset.uri,
+          type: mimeType,
           name: `photo.${fileExtension}`,
         } as any);
 
@@ -167,30 +187,40 @@ export default function ProfileScreen() {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'multipart/form-data',
           },
-          timeout: 10000, // 10 second timeout
+          timeout: 30000, // Increased timeout to 30 seconds
         };
 
-        const response = await axios.post(
+        const uploadResponse = await axios.post(
           `${API_URL}/api/auth/profile/pictures`,
           formData,
           config
         );
 
-        setProfile(prev => ({
-          ...prev,
-          pictures: response.data.pictures
-        }));
+        if (uploadResponse.data && uploadResponse.data.pictures) {
+          setProfile(prev => ({
+            ...prev,
+            pictures: uploadResponse.data.pictures
+          }));
+          Alert.alert('Success', 'Image uploaded successfully');
+        } else {
+          throw new Error('Invalid response from server');
+        }
       }
     } catch (error: any) {
       console.error('Error uploading image:', error);
       let errorMessage = 'Failed to upload image';
+      
       if (error.response) {
         // Server responded with error
         errorMessage = error.response.data.message || errorMessage;
       } else if (error.request) {
         // Request made but no response
         errorMessage = 'Network error. Please check your connection.';
+      } else if (error.message) {
+        // Something else went wrong
+        errorMessage = error.message;
       }
+      
       Alert.alert('Error', errorMessage);
     } finally {
       setIsUploadingImages(false);
@@ -230,24 +260,13 @@ export default function ProfileScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Profile</Text>
-        {!isEditing ? (
-          <TouchableOpacity 
-            style={styles.editButton} 
-            onPress={() => setIsEditing(true)}
-          >
-            <Text style={styles.editButtonText}>Edit</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={[styles.saveButton, isSaving && styles.buttonDisabled]} 
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            <Text style={styles.saveButtonText}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity 
+          style={styles.logoutButton} 
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={20} color="#fff" />
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.picturesContainer}>
@@ -371,9 +390,17 @@ export default function ProfileScreen() {
         <Text style={styles.charCount}>{profile.bio?.length || 0}/500</Text>
       </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
+      {isEditing && (
+        <TouchableOpacity 
+          style={[styles.saveButton, isSaving && styles.buttonDisabled]} 
+          onPress={handleSave}
+          disabled={isSaving}
+        >
+          <Text style={styles.saveButtonText}>
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
@@ -389,6 +416,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
+    paddingTop: 10,
   },
   title: {
     fontSize: 24,
@@ -519,17 +547,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   logoutButton: {
-    backgroundColor: '#ff4444',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 20,
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#ff4444',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 8,
   },
   logoutText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   loadingContainer: {
     flex: 1,
