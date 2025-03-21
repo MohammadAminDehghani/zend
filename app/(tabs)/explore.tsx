@@ -5,6 +5,8 @@ import { API_URL } from '../config/api';
 import { useAuth } from '../context/auth';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import SocketService from '../services/socket';
 
 interface Location {
   name: string;
@@ -58,6 +60,9 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [activeSlide, setActiveSlide] = useState(0);
   const flatListRef = useRef<FlatList>(null);
+  const router = useRouter();
+  const { user } = useAuth();
+  const socketService = SocketService.getInstance();
   
   useEffect(() => {
     if (visible) {
@@ -73,6 +78,25 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
       }).start();
     }
   }, [visible]);
+
+  const handleSendMessage = () => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to send messages');
+      return;
+    }
+
+    // Navigate to chat screen with creator info
+    router.push({
+      pathname: '/chat',
+      params: {
+        recipientId: creator.id,
+        recipientName: creator.name,
+        recipientPicture: creator.pictures[0]?.url,
+        chatType: 'one-to-one'
+      }
+    });
+    onClose();
+  };
 
   const renderPaginationDots = () => {
     return (
@@ -217,6 +241,14 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
                 <Text style={styles.sectionTitle}>Interests</Text>
                 {renderInterests()}
               </View>
+
+              <TouchableOpacity
+                style={styles.sendMessageButton}
+                onPress={handleSendMessage}
+              >
+                <Ionicons name="chatbubble-outline" size={20} color="#fff" />
+                <Text style={styles.sendMessageButtonText}>Send Message</Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </TouchableOpacity>
@@ -1095,5 +1127,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     marginTop: 8,
+  },
+  sendMessageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 20,
+    marginHorizontal: 16,
+    gap: 8,
+  },
+  sendMessageButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 }); 

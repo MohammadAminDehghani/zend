@@ -3,13 +3,20 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
+const http = require('http');
+const WebSocket = require('ws');
+const WebSocketServer = require('./websocket');
 const authRoutes = require('./routes/auth');
 const eventRoutes = require('./routes/events');
+const messageRoutes = require('./routes/messages');
 const authMiddleware = require('./middleware/auth');
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
+const wss = new WebSocketServer(server);
+
 const port = process.env.PORT || 3000;
 
 // Middleware
@@ -23,6 +30,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/auth', authRoutes);
 // Protected routes
 app.use('/api/events', authMiddleware, eventRoutes);
+app.use('/api/messages', authMiddleware, messageRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
@@ -39,7 +47,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/zend')
   .catch((err) => console.error('MongoDB connection error:', err));
 
 // Start server
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
 
