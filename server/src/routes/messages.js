@@ -121,14 +121,14 @@ router.get('/chats', authMiddleware, async (req, res) => {
           name: chatName,
           participants,
           lastMessage: message,
-          unreadCount: message.readBy.find(r => r.userId === req.user.userId) ? 0 : 1
+          unreadCount: message.sender._id.toString() !== req.user.userId && !message.readBy.find(r => r.userId === req.user.userId) ? 1 : 0
         });
       } else {
         const chat = chats.get(chatId);
         if (!chat.lastMessage || message.createdAt > chat.lastMessage.createdAt) {
           chat.lastMessage = message;
         }
-        if (!message.readBy.find(r => r.userId === req.user.userId)) {
+        if (message.sender._id.toString() !== req.user.userId && !message.readBy.find(r => r.userId === req.user.userId)) {
           chat.unreadCount++;
         }
       }

@@ -65,7 +65,31 @@ export default function ChatScreen() {
       }
     });
 
-    // Mark messages as read when entering chat
+    // Add messageSent handler to show sent messages immediately
+    socketService.onMessageSent((message: Message) => {
+      if (
+        (message.sender._id.toString() === recipientId && message.recipient?._id.toString() === user.id) ||
+        (message.sender._id.toString() === user.id && message.recipient?._id.toString() === recipientId)
+      ) {
+        setMessages(prev => {
+          // Check if message already exists
+          if (prev.some(m => m._id === message._id)) {
+            return prev;
+          }
+          return [...prev, message];
+        });
+      }
+    });
+
+    return () => {
+      socketService.removeAllListeners();
+    };
+  }, [user, recipientId]);
+
+  // Separate effect for marking messages as read
+  useEffect(() => {
+    if (!user || messages.length === 0) return;
+
     const unreadMessages = messages.filter(msg => 
       msg.sender._id.toString() !== user.id && 
       !msg.readBy.some(r => r.userId === user.id)
@@ -75,11 +99,7 @@ export default function ChatScreen() {
       const messageIds = unreadMessages.map(msg => msg._id);
       socketService.markAsRead(messageIds, user.id);
     }
-
-    return () => {
-      socketService.removeAllListeners();
-    };
-  }, [user, recipientId]);
+  }, [messages, user]);
 
   const fetchMessages = async () => {
     try {
@@ -162,7 +182,7 @@ export default function ChatScreen() {
     <View style={styles.header}>
       <TouchableOpacity
         style={styles.backButton}
-        onPress={() => router.back()}
+        onPress={() => router.push('/(tabs)/messages')}
       >
         <Ionicons name="arrow-back" size={24} color="#333" />
       </TouchableOpacity>
