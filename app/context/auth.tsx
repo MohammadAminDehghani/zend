@@ -9,7 +9,7 @@ type AuthContextType = {
   token: string | null;
   userId: string | null;
   user: {
-    id: string;
+    id: string | null;
   };
   setToken: (token: string | null) => void;
   logout: () => Promise<void>;

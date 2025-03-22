@@ -30,7 +30,7 @@ export default function ChatScreen() {
   const socketService = SocketService.getInstance();
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !user.id) {
       Alert.alert('Error', 'You must be logged in to chat');
       router.back();
       return;
@@ -88,7 +88,7 @@ export default function ChatScreen() {
 
   // Separate effect for marking messages as read
   useEffect(() => {
-    if (!user || messages.length === 0) return;
+    if (!user || !user.id || messages.length === 0) return;
 
     const unreadMessages = messages.filter(msg => 
       msg.sender._id.toString() !== user.id && 
@@ -149,7 +149,7 @@ export default function ChatScreen() {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
+    if (!newMessage.trim() || !user || !user.id) return;
 
     try {
       console.log('Sending message:', {

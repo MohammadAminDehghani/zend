@@ -7,14 +7,21 @@ import {
   Text,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChatListItem } from '../components/messages/ChatListItem';
 import { ChatPreview } from '../types/message';
 import { useAuth } from '../context/auth';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 
+type RootStackParamList = {
+  Chat: { chat: ChatPreview };
+};
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export const ChatListScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
   const [chats, setChats] = useState<ChatPreview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +66,7 @@ export const ChatListScreen: React.FC = () => {
   };
 
   const handleChatPress = (chat: ChatPreview) => {
-    navigation.navigate('Chat', chat);
+    navigation.navigate('Chat', { chat });
   };
 
   const renderChat = ({ item }: { item: ChatPreview }) => (
