@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image, Platform } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image, Platform, Dimensions } from 'react-native';
 import { useAuth } from '../context/auth';
 import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
@@ -6,6 +7,9 @@ import axios from 'axios';
 import { API_URL, getImageUrl } from '../config/api';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 
 interface UserProfile {
   id?: string;
@@ -35,6 +39,7 @@ export default function ProfileScreen() {
     bio: '',
     pictures: []
   });
+  const [tempProfile, setTempProfile] = useState<UserProfile | null>(null);
   const [newInterest, setNewInterest] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,6 +85,16 @@ export default function ProfileScreen() {
     return true;
   };
 
+  const handleEdit = () => {
+    setTempProfile({ ...profile });
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setTempProfile(null);
+    setIsEditing(false);
+  };
+
   const handleSave = async () => {
     if (!validateProfile()) return;
 
@@ -93,15 +108,16 @@ export default function ProfileScreen() {
       };
 
       const response = await axios.patch(`${API_URL}/api/auth/profile`, {
-        name: profile.name,
-        email: profile.email,
-        phone: profile.phone,
-        gender: profile.gender,
-        interests: profile.interests,
-        bio: profile.bio
+        name: tempProfile?.name,
+        email: tempProfile?.email,
+        phone: tempProfile?.phone,
+        gender: tempProfile?.gender,
+        interests: tempProfile?.interests,
+        bio: tempProfile?.bio
       }, config);
 
       setProfile(response.data);
+      setTempProfile(null);
       setIsEditing(false);
       Alert.alert('Success', 'Profile saved successfully');
     } catch (error: any) {
@@ -131,8 +147,24 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    await logout();
-    router.replace('/login');
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/login');
+          }
+        }
+      ]
+    );
   };
 
   const handleImagePick = async () => {
@@ -250,380 +282,371 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={commonStyles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Profile</Text>
-        <TouchableOpacity 
-          style={styles.logoutButton} 
-          onPress={handleLogout}
-        >
-          <Ionicons name="log-out-outline" size={20} color="#fff" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={{ flex: 1, backgroundColor: colors.white }}>
+      {/* Sticky Edit Bar */}
+      {isEditing && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 100,
+          backgroundColor: colors.white,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.gray[200],
+          padding: spacing.sm,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          shadowColor: colors.shadow.color,
+          shadowOffset: colors.shadow.offset,
+          shadowOpacity: colors.shadow.opacity,
+          shadowRadius: colors.shadow.radius,
+          elevation: 3,
+        }}>
+          <TouchableOpacity 
+            style={[commonStyles.button, { 
+              backgroundColor: 'transparent',
+              paddingVertical: spacing.xs,
+              paddingHorizontal: spacing.base,
+            }]}
+            onPress={handleCancel}
+          >
+            <Text style={[commonStyles.text, { color: colors.gray[700] }]}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[commonStyles.button, { 
+              backgroundColor: colors.primary,
+              paddingVertical: spacing.xs,
+              paddingHorizontal: spacing.base,
+            }]}
+            onPress={handleSave}
+            disabled={isSaving}
+          >
+            <Text style={[commonStyles.buttonText, { fontSize: typography.fontSize.base }]}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
-      <View style={styles.picturesContainer}>
-        {profile.pictures?.map((picture, index) => (
-          <View key={picture._id} style={styles.pictureWrapper}>
-            <Image 
-              source={{ uri: getImageUrl(picture.url) || undefined }} 
-              style={styles.picture}
-            />
-            <TouchableOpacity
-              style={styles.deleteImageButton}
-              onPress={() => handleDeleteImage(picture._id)}
+      <ScrollView style={[commonStyles.container, { backgroundColor: colors.white }]}>
+        {/* Header Section */}
+        <View style={{
+          padding: spacing.lg,
+          paddingTop: spacing.xl,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.gray[200],
+          marginTop: isEditing ? 48 : 0, // Adjusted margin for the fixed bar
+        }}>
+          <View style={[commonStyles.row, { justifyContent: 'space-between', marginBottom: spacing.lg }]}>
+            <Text style={[commonStyles.title, { color: colors.gray[900] }]}>Profile</Text>
+            <TouchableOpacity 
+              style={[commonStyles.button, { backgroundColor: colors.gray[100] }]}
+              onPress={handleLogout}
             >
-              <Text style={styles.deleteImageText}>×</Text>
+              <Ionicons name="log-out-outline" size={20} color={colors.gray[700]} />
+              <Text style={[commonStyles.text, { marginLeft: spacing.xs, color: colors.gray[700] }]}>Logout</Text>
             </TouchableOpacity>
           </View>
-        ))}
-        {(!profile.pictures || profile.pictures.length < 6) && (
-          <TouchableOpacity 
-            style={[styles.addPictureButton, isUploadingImages && styles.buttonDisabled]}
-            onPress={handleImagePick}
-            disabled={isUploadingImages}
-          >
-            {isUploadingImages ? (
-              <ActivityIndicator size="small" color="#007AFF" />
-            ) : (
-              <Text style={styles.addPictureText}>+</Text>
-            )}
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <View style={styles.form}>
-        <Text style={styles.label}>Name<Text style={styles.required}>*</Text></Text>
-        <TextInput
-          style={[styles.input, !profile.name && isEditing && styles.inputError]}
-          value={profile.name}
-          onChangeText={(text) => setProfile({ ...profile, name: text })}
-          editable={isEditing}
-          placeholder="Enter your name"
-        />
-
-        <Text style={styles.label}>Email<Text style={styles.required}>*</Text></Text>
-        <TextInput
-          style={[styles.input, !profile.email && isEditing && styles.inputError]}
-          value={profile.email}
-          onChangeText={(text) => setProfile({ ...profile, email: text })}
-          keyboardType="email-address"
-          editable={isEditing}
-          placeholder="Enter your email"
-          autoCapitalize="none"
-        />
-
-        <Text style={styles.label}>Phone</Text>
-        <TextInput
-          style={styles.input}
-          value={profile.phone}
-          onChangeText={(text) => setProfile({ ...profile, phone: text })}
-          keyboardType="phone-pad"
-          editable={isEditing}
-        />
-
-        <Text style={styles.label}>Gender</Text>
-        <View style={styles.genderContainer}>
-          {(['man', 'woman', 'other'] as Gender[]).map((gender) => (
-            <TouchableOpacity
-              key={gender}
-              style={[
-                styles.genderButton,
-                profile.gender === gender && styles.genderButtonSelected,
-                !isEditing && styles.genderButtonDisabled
-              ]}
-              onPress={() => isEditing && setProfile({ ...profile, gender })}
-            >
-              <Text style={[
-                styles.genderButtonText,
-                profile.gender === gender && styles.genderButtonTextSelected
-              ]}>
-                {gender.charAt(0).toUpperCase() + gender.slice(1)}
+          
+          <View style={[commonStyles.row, { alignItems: 'center' }]}>
+            <View style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: colors.gray[100],
+              marginRight: spacing.lg,
+              overflow: 'hidden',
+              borderWidth: 2,
+              borderColor: colors.gray[200],
+            }}>
+              {profile.pictures?.[0] ? (
+                <Image 
+                  source={{ uri: getImageUrl(profile.pictures[0].url) || undefined }} 
+                  style={{ width: '100%', height: '100%' }}
+                />
+              ) : (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  <Ionicons name="person" size={40} color={colors.gray[400]} />
+                </View>
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[commonStyles.title, { color: colors.gray[900], fontSize: typography.fontSize.xl }]}>
+                {profile.name || 'Add Name'}
               </Text>
-            </TouchableOpacity>
-          ))}
+              <Text style={[commonStyles.text, { color: colors.gray[600] }]}>
+                {profile.email || 'Add Email'}
+              </Text>
+            </View>
+          </View>
         </View>
 
-        <Text style={styles.label}>Interests</Text>
-        <View style={styles.interestsContainer}>
-          {profile.interests.map((interest, index) => (
-            <View key={index} style={styles.interestTag}>
-              <Text style={styles.interestText}>{interest}</Text>
-              {isEditing && (
-                <TouchableOpacity onPress={() => removeInterest(interest)}>
-                  <Text style={styles.removeInterest}>×</Text>
+        {/* Main Content */}
+        <View style={{ padding: spacing.base }}>
+          {/* Photo Gallery */}
+          <View style={{ marginBottom: spacing.xl }}>
+            <View style={[commonStyles.row, { justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.base }]}>
+              <Text style={[commonStyles.subtitle, { color: colors.gray[900] }]}>Photo Gallery</Text>
+              <Text style={[commonStyles.textSecondary, { fontSize: typography.fontSize.sm }]}>
+                {profile.pictures?.length || 0}/6 photos
+              </Text>
+            </View>
+            <View style={{ gap: spacing.sm }}>
+              {[0, 1].map((rowIndex) => (
+                <View key={rowIndex} style={[commonStyles.row, { gap: spacing.sm }]}>
+                  {[0, 1, 2].map((colIndex) => {
+                    const index = rowIndex * 3 + colIndex;
+                    return (
+                      <View key={index} style={{
+                        flex: 1,
+                        aspectRatio: 1,
+                        borderRadius: borderRadius.lg,
+                        overflow: 'hidden',
+                        backgroundColor: colors.gray[100],
+                        borderWidth: 1,
+                        borderColor: colors.gray[200],
+                      }}>
+                        {profile.pictures?.[index] ? (
+                          <>
+                            <Image 
+                              source={{ uri: getImageUrl(profile.pictures[index].url) || undefined }} 
+                              style={{ width: '100%', height: '100%' }}
+                            />
+                            {isEditing && (
+                              <TouchableOpacity
+                                style={{
+                                  position: 'absolute',
+                                  top: spacing.xs,
+                                  right: spacing.xs,
+                                  backgroundColor: colors.danger,
+                                  width: 24,
+                                  height: 24,
+                                  borderRadius: 12,
+                                  justifyContent: 'center',
+                                  alignItems: 'center',
+                                }}
+                                onPress={() => handleDeleteImage(profile.pictures[index]._id)}
+                              >
+                                <Text style={{ color: colors.white, fontSize: 16 }}>×</Text>
+                              </TouchableOpacity>
+                            )}
+                          </>
+                        ) : (
+                          <TouchableOpacity 
+                            style={{
+                              flex: 1,
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              borderWidth: 2,
+                              borderColor: colors.gray[300],
+                              borderStyle: 'dashed',
+                            }}
+                            onPress={handleImagePick}
+                            disabled={isUploadingImages}
+                          >
+                            {isUploadingImages ? (
+                              <ActivityIndicator size="small" color={colors.primary} />
+                            ) : (
+                              <Ionicons name="add-circle-outline" size={32} color={colors.primary} />
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Profile Form */}
+          <View>
+            <View style={[commonStyles.row, { justifyContent: 'space-between', marginBottom: spacing.base }]}>
+              <Text style={[commonStyles.subtitle, { color: colors.gray[900] }]}>Profile Details</Text>
+              {!isEditing && (
+                <TouchableOpacity 
+                  style={[commonStyles.button, { backgroundColor: colors.gray[100] }]}
+                  onPress={handleEdit}
+                >
+                  <Text style={[commonStyles.text, { color: colors.primary }]}>Edit</Text>
                 </TouchableOpacity>
               )}
             </View>
-          ))}
-        </View>
-        {isEditing && (
-          <View style={styles.addInterestContainer}>
-            <TextInput
-              style={styles.interestInput}
-              value={newInterest}
-              onChangeText={setNewInterest}
-              placeholder="Add interest"
-            />
-            <TouchableOpacity style={styles.addButton} onPress={addInterest}>
-              <Text style={styles.addButtonText}>Add</Text>
-            </TouchableOpacity>
+
+            <View style={{ gap: spacing.lg }}>
+              {/* Basic Information */}
+              <View>
+                <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>Basic Information</Text>
+                <View style={{ gap: spacing.base }}>
+                  <View>
+                    <Text style={[commonStyles.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>Name<Text style={{ color: colors.danger }}>*</Text></Text>
+                    <TextInput
+                      style={[
+                        commonStyles.input, 
+                        { borderColor: colors.gray[200] },
+                        !tempProfile?.name && isEditing && { borderColor: colors.danger }
+                      ]}
+                      value={isEditing ? tempProfile?.name : profile.name}
+                      onChangeText={(text) => setTempProfile(prev => prev ? { ...prev, name: text } : null)}
+                      editable={isEditing}
+                      placeholder="Enter your name"
+                    />
+                  </View>
+
+                  <View>
+                    <Text style={[commonStyles.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>Email<Text style={{ color: colors.danger }}>*</Text></Text>
+                    <TextInput
+                      style={[
+                        commonStyles.input, 
+                        { borderColor: colors.gray[200] },
+                        !tempProfile?.email && isEditing && { borderColor: colors.danger }
+                      ]}
+                      value={isEditing ? tempProfile?.email : profile.email}
+                      onChangeText={(text) => setTempProfile(prev => prev ? { ...prev, email: text } : null)}
+                      keyboardType="email-address"
+                      editable={isEditing}
+                      placeholder="Enter your email"
+                      autoCapitalize="none"
+                    />
+                  </View>
+
+                  <View>
+                    <Text style={[commonStyles.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>Phone</Text>
+                    <TextInput
+                      style={[commonStyles.input, { borderColor: colors.gray[200] }]}
+                      value={isEditing ? tempProfile?.phone : profile.phone}
+                      onChangeText={(text) => setTempProfile(prev => prev ? { ...prev, phone: text } : null)}
+                      keyboardType="phone-pad"
+                      editable={isEditing}
+                      placeholder="Enter your phone number"
+                    />
+                  </View>
+                </View>
+              </View>
+
+              {/* Gender Selection */}
+              <View>
+                <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>Gender</Text>
+                <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
+                  {(['man', 'woman', 'other'] as Gender[]).map((gender) => (
+                    <TouchableOpacity
+                      key={gender}
+                      style={[
+                        commonStyles.tag,
+                        {
+                          backgroundColor: (isEditing ? tempProfile?.gender : profile.gender) === gender ? colors.primary : colors.gray[100],
+                          borderWidth: 1,
+                          borderColor: (isEditing ? tempProfile?.gender : profile.gender) === gender ? colors.primary : colors.gray[200],
+                          paddingHorizontal: spacing.base,
+                          paddingVertical: spacing.sm,
+                        },
+                        !isEditing && commonStyles.buttonDisabled
+                      ]}
+                      onPress={() => isEditing && setTempProfile(prev => prev ? { ...prev, gender } : null)}
+                    >
+                      <Text style={[
+                        commonStyles.tagText,
+                        { 
+                          color: (isEditing ? tempProfile?.gender : profile.gender) === gender ? colors.white : colors.gray[700],
+                          fontSize: typography.fontSize.base,
+                        }
+                      ]}>
+                        {gender.charAt(0).toUpperCase() + gender.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Interests */}
+              <View>
+                <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>Interests</Text>
+                <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
+                  {(isEditing ? tempProfile?.interests : profile.interests).map((interest, index) => (
+                    <View key={index} style={[
+                      commonStyles.tag, 
+                      { 
+                        backgroundColor: colors.gray[100],
+                        paddingHorizontal: spacing.base,
+                        paddingVertical: spacing.sm,
+                        borderRadius: borderRadius.full,
+                        borderWidth: 1,
+                        borderColor: colors.gray[200],
+                      }
+                    ]}>
+                      <Text style={[commonStyles.tagText, { color: colors.primary, fontSize: typography.fontSize.base }]}>
+                        {interest}
+                      </Text>
+                      {isEditing && (
+                        <TouchableOpacity 
+                          onPress={() => setTempProfile(prev => prev ? {
+                            ...prev,
+                            interests: prev.interests.filter(i => i !== interest)
+                          } : null)}
+                          style={{ marginLeft: spacing.xs }}
+                        >
+                          <Ionicons name="close-circle" size={16} color={colors.primary} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+                </View>
+                {isEditing && (
+                  <View style={[commonStyles.row, { gap: spacing.sm, marginTop: spacing.base }]}>
+                    <TextInput
+                      style={[commonStyles.input, { flex: 1, borderColor: colors.gray[200] }]}
+                      value={newInterest}
+                      onChangeText={setNewInterest}
+                      placeholder="Add a new interest"
+                    />
+                    <TouchableOpacity 
+                      style={[commonStyles.button, commonStyles.buttonPrimary]}
+                      onPress={() => {
+                        if (newInterest.trim() && !tempProfile?.interests.includes(newInterest.trim())) {
+                          setTempProfile(prev => prev ? {
+                            ...prev,
+                            interests: [...prev.interests, newInterest.trim()]
+                          } : null);
+                          setNewInterest('');
+                        }
+                      }}
+                    >
+                      <Text style={commonStyles.buttonText}>Add</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              {/* Bio */}
+              <View>
+                <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>About Me</Text>
+                <TextInput
+                  style={[commonStyles.input, commonStyles.textArea, { borderColor: colors.gray[200] }]}
+                  value={isEditing ? tempProfile?.bio : profile.bio}
+                  onChangeText={(text) => setTempProfile(prev => prev ? { ...prev, bio: text } : null)}
+                  multiline
+                  maxLength={500}
+                  editable={isEditing}
+                  placeholder="Tell us about yourself..."
+                  textAlignVertical="top"
+                />
+                <Text style={[commonStyles.textSecondary, { textAlign: 'right', marginTop: spacing.xs }]}>
+                  {(isEditing ? tempProfile?.bio : profile.bio)?.length || 0}/500
+                </Text>
+              </View>
+            </View>
           </View>
-        )}
-
-        <Text style={styles.label}>Bio</Text>
-        <TextInput
-          style={[styles.input, styles.bioInput]}
-          value={profile.bio}
-          onChangeText={(text) => setProfile({ ...profile, bio: text })}
-          multiline
-          maxLength={500}
-          editable={isEditing}
-        />
-        <Text style={styles.charCount}>{profile.bio?.length || 0}/500</Text>
-      </View>
-
-      {isEditing && (
-        <TouchableOpacity 
-          style={[styles.saveButton, isSaving && styles.buttonDisabled]} 
-          onPress={handleSave}
-          disabled={isSaving}
-        >
-          <Text style={styles.saveButtonText}>
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </Text>
-        </TouchableOpacity>
-      )}
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingTop: 10,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  form: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  bioInput: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  charCount: {
-    textAlign: 'right',
-    color: '#666',
-    marginTop: -12,
-    marginBottom: 16,
-  },
-  genderContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  genderButton: {
-    flex: 1,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginRight: 8,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  genderButtonSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  genderButtonDisabled: {
-    opacity: 0.7,
-  },
-  genderButtonText: {
-    color: '#333',
-  },
-  genderButtonTextSelected: {
-    color: '#fff',
-  },
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 8,
-  },
-  interestTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E1F5FE',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    margin: 4,
-  },
-  interestText: {
-    color: '#0288D1',
-    marginRight: 4,
-  },
-  removeInterest: {
-    color: '#0288D1',
-    fontSize: 18,
-    marginLeft: 4,
-  },
-  addInterestContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  interestInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    marginRight: 8,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
-  },
-  addButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  editButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  editButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  saveButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  saveButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ff4444',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    gap: 8,
-  },
-  logoutText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
-  required: {
-    color: '#ff4444',
-    marginLeft: 4,
-  },
-  inputError: {
-    borderColor: '#ff4444',
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  picturesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    padding: 10,
-    gap: 10,
-  },
-  pictureWrapper: {
-    position: 'relative',
-    width: '31%',
-    aspectRatio: 1,
-    marginBottom: 10,
-  },
-  picture: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 8,
-  },
-  addPictureButton: {
-    width: '31%',
-    aspectRatio: 1,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderStyle: 'dashed',
-  },
-  addPictureText: {
-    fontSize: 24,
-    color: '#007AFF',
-  },
-  deleteImageButton: {
-    position: 'absolute',
-    top: -10,
-    right: -10,
-    backgroundColor: '#ff4444',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  deleteImageText: {
-    color: 'white',
-    fontSize: 18,
-    lineHeight: 24,
-  },
-}); 
+} 
