@@ -1,11 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, Dimensions, Modal, Image, ScrollView, Animated } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { API_URL } from '../config/api';
+import { API_URL, getImageUrl } from '../config/api';
 import { useAuth } from '../context/auth';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams, Link } from 'expo-router';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
+import CustomAlert from '../components/CustomAlert';
+import { useAlert } from '../utils/alert';
+import { BlurView } from 'expo-blur';
+import Tag from '../components/Tag';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface Location {
   name: string;
@@ -112,7 +118,6 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
     } catch (error) {
       console.error('Error fetching user details:', error);
       setError(error instanceof Error ? error.message : 'Failed to load user details');
-      Alert.alert('Error', 'Failed to load user details. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -122,14 +127,24 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
     if (!userDetails?.pictures || userDetails.pictures.length <= 1) return null;
 
     return (
-      <View style={styles.paginationDots}>
+      <View style={{
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'absolute',
+        bottom: spacing.sm,
+        width: '100%',
+      }}>
         {userDetails.pictures.map((_: any, index: number) => (
           <View
             key={index}
-            style={[
-              styles.paginationDot,
-              index === activeSlide && styles.paginationDotActive,
-            ]}
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: index === activeSlide ? colors.white : `rgba(255, 255, 255, 0.5)`,
+              marginHorizontal: 4,
+            }}
           />
         ))}
       </View>
@@ -139,16 +154,22 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
   const renderUserPhotos = () => {
     if (!userDetails?.pictures || userDetails.pictures.length === 0) {
       return (
-        <View style={[styles.userPhoto, styles.userPhotoPlaceholder]}>
-          <Ionicons name="person" size={60} color="#666" />
+        <View style={{
+          width: '100%',
+          aspectRatio: 1,
+          backgroundColor: colors.gray[100],
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <Ionicons name="person" size={60} color={colors.gray[400]} />
         </View>
       );
     }
 
-    const imageSize = Math.min(Dimensions.get('window').width, Dimensions.get('window').width);
+    const imageSize = Dimensions.get('window').width;
 
     return (
-      <View style={styles.sliderContainer}>
+      <View style={{ width: '100%', aspectRatio: 1 }}>
         <FlatList
           ref={flatListRef}
           data={userDetails.pictures}
@@ -161,15 +182,25 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
             );
             setActiveSlide(currentIndex);
           }}
-          renderItem={({ item }) => (
-            <View style={styles.imageWrapper}>
-              <Image
-                source={{ uri: `${API_URL}${item.url}` }}
-                style={styles.sliderImage}
-                defaultSource={require('../assets/default-avatar.png')}
-              />
-            </View>
-          )}
+          renderItem={({ item }) => {
+            let imageSource = undefined;
+            if (item.url) {
+              const url = getImageUrl(item.url);
+              if (url) {
+                imageSource = { uri: url };
+              }
+            }
+            
+            return (
+              <View style={{ width: imageSize, aspectRatio: 1 }}>
+                <Image
+                  source={imageSource || require('../assets/default-avatar.png')}
+                  style={{ width: '100%', height: '100%' }}
+                  defaultSource={require('../assets/default-avatar.png')}
+                />
+              </View>
+            );
+          }}
           keyExtractor={(item) => item._id}
         />
         {renderPaginationDots()}
@@ -186,98 +217,196 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity
-        style={styles.modalOverlay}
+      <TouchableOpacity 
+        style={{ flex: 1 }}
         activeOpacity={1}
         onPress={onClose}
       >
-        <TouchableOpacity
-          style={[
-            styles.userModal,
-            {
-              transform: [
-                {
-                  translateY: slideAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [300, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-          activeOpacity={1}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>User Details</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>×</Text>
-            </TouchableOpacity>
-          </View>
-
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#0000ff" />
-              <Text style={styles.loadingText}>Loading user details...</Text>
-            </View>
-          ) : error ? (
-            <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={48} color="#ff4444" />
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity
-                style={styles.retryButton}
-                onPress={fetchUserDetails}
+        <BlurView intensity={20} style={{ flex: 1 }}>
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            justifyContent: 'flex-end',
+          }}>
+            <TouchableOpacity 
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Animated.View
+                style={[
+                  {
+                    backgroundColor: colors.white,
+                    borderTopLeftRadius: borderRadius.xl,
+                    borderTopRightRadius: borderRadius.xl,
+                    height: Dimensions.get('window').height * 0.8,
+                    width: '100%',
+                    overflow: 'hidden',
+                    transform: [
+                      {
+                        translateY: slideAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [300, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
               >
-                <Text style={styles.retryButtonText}>Retry</Text>
-              </TouchableOpacity>
-            </View>
-          ) : userDetails ? (
-            <ScrollView style={styles.userModalContent}>
-              <View style={styles.userProfile}>
-                {renderUserPhotos()}
+                <LinearGradient
+                  colors={['rgba(0,0,0,0.05)', 'transparent']}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 100,
+                    zIndex: 1,
+                  }}
+                />
                 
-                <Text style={styles.userName}>{userDetails.name}</Text>
-                <Text style={styles.userEmail}>{userDetails.email}</Text>
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: spacing.lg,
+                  zIndex: 2,
+                }}>
+                  <Text style={[commonStyles.subtitle, { marginBottom: 0, fontSize: typography.fontSize.xl }]}>
+                    User Details
+                  </Text>
+                  <TouchableOpacity
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: colors.gray[100],
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                    onPress={onClose}
+                  >
+                    <Ionicons name="close" size={20} color={colors.gray[600]} />
+                  </TouchableOpacity>
+                </View>
 
-                {userDetails.phone && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="call-outline" size={20} color="#666" />
-                    <Text style={styles.infoText}>{userDetails.phone}</Text>
-                  </View>
-                )}
-
-                {userDetails.gender && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="person-outline" size={20} color="#666" />
-                    <Text style={styles.infoText}>
-                      {userDetails.gender.charAt(0).toUpperCase() + userDetails.gender.slice(1)}
+                {loading ? (
+                  <View style={commonStyles.loadingContainer}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                    <Text style={[commonStyles.text, { marginTop: spacing.base, color: colors.gray[600] }]}>
+                      Loading user details...
                     </Text>
                   </View>
-                )}
-
-                {userDetails.bio && (
-                  <View style={styles.bioContainer}>
-                    <Text style={styles.sectionTitle}>Bio</Text>
-                    <Text style={styles.bioText}>{userDetails.bio}</Text>
+                ) : error ? (
+                  <View style={{
+                    flex: 1,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    padding: spacing.xl,
+                  }}>
+                    <Ionicons name="alert-circle" size={48} color={colors.danger} />
+                    <Text style={[commonStyles.text, { marginTop: spacing.base, color: colors.danger, textAlign: 'center' }]}>
+                      {error}
+                    </Text>
+                    <TouchableOpacity
+                      style={[commonStyles.button, commonStyles.buttonPrimary, { marginTop: spacing.lg }]}
+                      onPress={fetchUserDetails}
+                    >
+                      <Text style={commonStyles.buttonText}>Retry</Text>
+                    </TouchableOpacity>
                   </View>
-                )}
-
-                {userDetails.interests && userDetails.interests.length > 0 && (
-                  <View style={styles.interestsSection}>
-                    <Text style={styles.sectionTitle}>Interests</Text>
-                    <View style={styles.interestsContainer}>
-                      {userDetails.interests.map((interest: string, index: number) => (
-                        <View key={index} style={styles.interestTag}>
-                          <Text style={styles.interestText}>{interest}</Text>
+                ) : userDetails ? (
+                  <ScrollView>
+                    {renderUserPhotos()}
+                    
+                    <View style={{ padding: spacing.lg }}>
+                      <View style={{ 
+                        flexDirection: 'row', 
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: spacing.lg 
+                      }}>
+                        <View>
+                          <Text style={[commonStyles.title, { marginBottom: spacing.xs }]}>{userDetails.name}</Text>
+                          <Text style={[commonStyles.textSecondary]}>{userDetails.email}</Text>
                         </View>
-                      ))}
+                        <TouchableOpacity
+                          style={[commonStyles.button, {
+                            backgroundColor: colors.primary + '10',
+                            paddingVertical: spacing.xs,
+                            paddingHorizontal: spacing.sm,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: spacing.xs,
+                            borderRadius: borderRadius.lg,
+                          }]}
+                          onPress={() => {
+                            onClose();
+                            router.push({
+                              pathname: '/chat',
+                              params: { 
+                                recipientId: userDetails.id,
+                                recipientName: userDetails.name,
+                                recipientPicture: userDetails.pictures?.[0]?.url,
+                                chatType: 'one-to-one'
+                              }
+                            });
+                          }}
+                        >
+                          <Ionicons name="chatbubble-outline" size={14} color={colors.primary} />
+                          <Text style={[commonStyles.text, { 
+                            color: colors.primary,
+                            fontSize: typography.fontSize.xs,
+                            fontWeight: '500'
+                          }]}>
+                            Message
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {userDetails.phone && (
+                        <View style={[commonStyles.row, { marginBottom: spacing.sm }]}>
+                          <Ionicons name="call-outline" size={20} color={colors.gray[600]} />
+                          <Text style={[commonStyles.text, { marginLeft: spacing.sm, color: colors.gray[600] }]}>
+                            {userDetails.phone}
+                          </Text>
+                        </View>
+                      )}
+
+                      {userDetails.gender && (
+                        <View style={[commonStyles.row, { marginBottom: spacing.lg }]}>
+                          <Ionicons name="person-outline" size={20} color={colors.gray[600]} />
+                          <Text style={[commonStyles.text, { marginLeft: spacing.sm, color: colors.gray[600] }]}>
+                            {userDetails.gender.charAt(0).toUpperCase() + userDetails.gender.slice(1)}
+                          </Text>
+                        </View>
+                      )}
+
+                      {userDetails.bio && (
+                        <View style={{ marginBottom: spacing.lg }}>
+                          <Text style={[commonStyles.subtitle]}>Bio</Text>
+                          <Text style={[commonStyles.text, { color: colors.gray[600], lineHeight: typography.lineHeight.normal }]}>
+                            {userDetails.bio}
+                          </Text>
+                        </View>
+                      )}
+
+                      {userDetails.interests && userDetails.interests.length > 0 && (
+                        <View>
+                          <Text style={[commonStyles.subtitle]}>Interests</Text>
+                          <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
+                            {userDetails.interests.map((interest: string, index: number) => (
+                              <Tag key={index} label={interest} isSelected={false} disabled={true} />
+                            ))}
+                          </View>
+                        </View>
+                      )}
                     </View>
-                  </View>
-                )}
-              </View>
-            </ScrollView>
-          ) : null}
-        </TouchableOpacity>
+                  </ScrollView>
+                ) : null}
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
       </TouchableOpacity>
     </Modal>
   );
@@ -291,11 +420,13 @@ export default function ManageScreen() {
   const isMounted = useRef(true);
   const { token, userId } = useAuth();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const { showAlert, alertConfig, show, hide } = useAlert();
 
   const fetchEvents = useCallback(async () => {
     const controller = new AbortController();
     
     try {
+      setLoading(true);
       const response = await fetch(`${API_URL}/api/events/managed`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -365,107 +496,263 @@ export default function ManageScreen() {
       }
 
       setEvents(prevEvents => prevEvents.filter(event => event._id !== eventId));
-      Alert.alert('Success', 'Event deleted successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-      Alert.alert('Error', errorMessage);
-    }
-  }, [token]);
-
-  const handleAcceptRequest = useCallback(async (eventId: string, userId: string) => {
-    try {
-      const response = await fetch(`${API_URL}/api/events/${eventId}/accept-request`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId })
+      show({
+        title: 'Error',
+        message: errorMessage,
+        buttons: [
+          {
+            text: 'OK',
+            onPress: hide,
+          }
+        ]
       });
+    }
+  }, [token, show, hide]);
+
+  const handleDeleteEvent = useCallback((eventId: string, eventTitle: string) => {
+    show({
+      title: 'Delete Event',
+      message: `Are you sure you want to delete "${eventTitle}"? This action cannot be undone.`,
+      buttons: [
+        {
+          text: 'Cancel',
+          onPress: hide,
+          style: 'destructive'
+        },
+        {
+          text: 'Delete',
+          onPress: () => {
+            hide();
+            deleteEvent(eventId);
+          }
+        }
+      ]
+    });
+  }, [deleteEvent, show, hide]);
+
+  const handleStatusChange = useCallback(async (eventId: string, userId: string, newStatus: 'pending' | 'approved' | 'rejected') => {
+    try {
+      let response;
+      
+      if (newStatus === 'pending') {
+        // First, have the user leave the event
+        response = await fetch(`${API_URL}/api/events/${eventId}/leave`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ userId })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to leave event');
+        }
+
+        // Then, have them rejoin to get pending status
+        response = await fetch(`${API_URL}/api/events/${eventId}/join`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ userId })
+        });
+      } else {
+        // For approved/rejected statuses, use existing endpoints
+        const endpoint = newStatus === 'approved' ? 'accept-request' : 'reject-request';
+        response = await fetch(`${API_URL}/api/events/${eventId}/${endpoint}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ userId })
+        });
+      }
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Failed to accept request');
+        throw new Error(error.message || `Failed to update participant status`);
       }
 
-      const updatedEvent = await response.json();
-      setEvents(prevEvents => 
-        prevEvents.map(event => 
-          event._id === eventId ? updatedEvent : event
-        )
-      );
-      Alert.alert('Success', 'Request accepted');
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-      Alert.alert('Error', errorMessage);
-    }
-  }, [token]);
-
-  const handleRejectRequest = useCallback(async (eventId: string, userId: string) => {
-    try {
-      const response = await fetch(`${API_URL}/api/events/${eventId}/reject-request`, {
-        method: 'POST',
+      // Fetch the updated event with full participant details
+      const eventResponse = await fetch(`${API_URL}/api/events/managed`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId })
+          'Authorization': `Bearer ${token}`
+        }
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to reject request');
+      if (!eventResponse.ok) {
+        throw new Error('Failed to fetch updated event data');
       }
 
-      const updatedEvent = await response.json();
+      const managedEvents: Event[] = await eventResponse.json();
+      const updatedEventData = managedEvents.find((event) => event._id === eventId);
+      
+      if (!updatedEventData) {
+        throw new Error('Failed to find updated event');
+      }
+
       setEvents(prevEvents => 
         prevEvents.map(event => 
-          event._id === eventId ? updatedEvent : event
+          event._id === eventId ? updatedEventData : event
         )
       );
-      Alert.alert('Success', 'Request rejected');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-      Alert.alert('Error', errorMessage);
+      show({
+        title: 'Error',
+        message: errorMessage,
+        buttons: [
+          {
+            text: 'OK',
+            onPress: hide,
+          }
+        ]
+      });
     }
-  }, [token]);
+  }, [token, show, hide]);
 
-  const renderParticipantRequests = useCallback((item: Event) => {
-    const pendingRequests = (item.participants || []).filter(p => p.status === 'pending');
-    
-    if (pendingRequests.length === 0) return null;
+  const renderParticipants = useCallback((item: Event) => {
+    if (!item.participants || item.participants.length === 0) return null;
+
+    const statusColors = {
+      pending: colors.warning,
+      approved: colors.success,
+      rejected: colors.danger
+    };
+
+    const statusLabels = {
+      pending: 'Pending',
+      approved: 'Approved',
+      rejected: 'Rejected'
+    };
 
     return (
-      <View style={styles.requestsSection}>
-        <Text style={styles.requestsTitle}>Pending Requests ({pendingRequests.length})</Text>
-        {pendingRequests.map((participant, index) => (
-          <View key={index} style={styles.requestItem}>
+      <View style={{
+        marginBottom: spacing.lg,
+      }}>
+        <Text style={[commonStyles.subtitle, { marginBottom: spacing.base }]}>
+          Participants ({item.participants.length})
+        </Text>
+        {item.participants.map((participant, index) => (
+          <View key={index} style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingVertical: spacing.sm,
+            borderBottomWidth: index < item.participants.length - 1 ? 1 : 0,
+            borderBottomColor: colors.gray[200],
+          }}>
             <TouchableOpacity 
-              style={styles.requestInfo}
+              style={{ flex: 1, padding: spacing.xs }}
               onPress={() => setSelectedUserId(participant.userId)}
             >
-              <Text style={styles.requestName}>{participant.user?.name || 'Unknown User'}</Text>
-              <Text style={styles.requestEmail}>{participant.user?.email}</Text>
+              <View style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                marginBottom: spacing.xs
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+                  <Text style={[commonStyles.text, { fontWeight: '500' }]}>
+                    {participant.user?.name || 'Unknown User'}
+                  </Text>
+                  {item.status === 'verification_required' && (
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: statusColors[participant.status] + '10',
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: spacing.xs,
+                        borderRadius: borderRadius.lg,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: spacing.xs,
+                      }}
+                      onPress={() => {
+                        show({
+                          title: 'Change Status',
+                          message: `Change status:`,
+                          buttons: [
+                            {
+                              text: '✓ Approve',
+                              onPress: () => {
+                                hide();
+                                handleStatusChange(item._id, participant.userId, 'approved');
+                              }
+                            },
+                            {
+                              text: '✕ Reject',
+                              onPress: () => {
+                                hide();
+                                handleStatusChange(item._id, participant.userId, 'rejected');
+                              },
+                              style: 'destructive'
+                            }
+                          ]
+                        });
+                      }}
+                    >
+                      <Text style={[commonStyles.textSecondary, { 
+                        fontSize: typography.fontSize.xs,
+                        color: statusColors[participant.status],
+                        fontWeight: '500'
+                      }]}>
+                        {statusLabels[participant.status]}
+                      </Text>
+                      <Ionicons 
+                        name="chevron-down" 
+                        size={12} 
+                        color={statusColors[participant.status]} 
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={{
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: spacing.xs,
+                    borderRadius: borderRadius.lg,
+                    backgroundColor: colors.primary + '10',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: spacing.xs,
+                  }}
+                  onPress={() => {
+                    router.push({
+                      pathname: '/chat',
+                      params: { 
+                        recipientId: participant.userId,
+                        recipientName: participant.user?.name || 'Unknown User',
+                        recipientPicture: participant.user?.pictures?.[0]?.url,
+                        chatType: 'one-to-one'
+                      }
+                    });
+                  }}
+                >
+                  <Ionicons name="chatbubble-outline" size={14} color={colors.primary} />
+                  <Text style={[commonStyles.text, { 
+                    color: colors.primary,
+                    fontSize: typography.fontSize.xs,
+                    fontWeight: '500'
+                  }]}>
+                    Message
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={[commonStyles.textSecondary, { fontSize: typography.fontSize.sm }]}>
+                {participant.user?.email}
+              </Text>
             </TouchableOpacity>
-            <View style={styles.requestActions}>
-              <TouchableOpacity
-                style={[styles.requestButton, styles.acceptButton]}
-                onPress={() => handleAcceptRequest(item._id, participant.userId)}
-              >
-                <Ionicons name="checkmark" size={20} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.requestButton, styles.rejectButton]}
-                onPress={() => handleRejectRequest(item._id, participant.userId)}
-              >
-                <Ionicons name="close" size={20} color="#fff" />
-              </TouchableOpacity>
-            </View>
           </View>
         ))}
       </View>
     );
-  }, [handleAcceptRequest, handleRejectRequest]);
+  }, [handleStatusChange, show, hide]);
 
   const renderEvent = useCallback(({ item }: { item: Event }) => {
     if (!item || !item._id) return null;
@@ -486,145 +773,304 @@ export default function ManageScreen() {
       });
     };
 
-    const renderTags = () => (
-      <View style={styles.tagsContainer}>
-        {(item.tags || []).map((tag, index) => (
-          <View key={index} style={styles.tag}>
-            <Text style={styles.tagText}>{tag}</Text>
-          </View>
-        ))}
-      </View>
-    );
-
-    const renderRecurringInfo = () => {
-      if (item.type !== 'recurring') return null;
-
-      return (
-        <View style={styles.recurringInfo}>
-          <Text style={styles.recurringText}>
-            Repeats {item.repeatFrequency}ly
-            {item.repeatDays && item.repeatDays.length > 0 && 
-              ` on ${item.repeatDays.join(', ')}`}
-          </Text>
-          {item.endDate && (
-            <Text style={styles.endDateText}>
-              Until {formatDate(item.endDate)}
-            </Text>
-          )}
-        </View>
-      );
-    };
-
     return (
-      <View style={styles.eventCard}>
-        <Text style={styles.eventTitle}>{item.title}</Text>
-        <Text style={styles.eventDescription}>{item.description}</Text>
-        
-        {renderParticipantRequests(item)}
-        
-        <View style={styles.dateTimeInfo}>
-          <Text style={styles.dateTimeText}>
-            {formatDate(item.startDate)}
-          </Text>
-          <Text style={styles.dateTimeText}>
-            {formatTime(item.startTime)} - {formatTime(item.endTime)}
-          </Text>
-        </View>
+      <View style={[{ 
+        backgroundColor: colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.gray[200],
+      }]}>
+        <View style={{ padding: spacing.lg }}>
+          {/* Header Section */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <Text style={[commonStyles.subtitle, { 
+              fontSize: typography.fontSize.xl,
+              marginBottom: spacing.xs,
+              color: colors.gray[900]
+            }]}>
+              {item.title}
+            </Text>
+            <Text style={[commonStyles.text, { 
+              color: colors.gray[600],
+              marginBottom: spacing.base,
+              lineHeight: typography.lineHeight.relaxed
+            }]}>
+              {item.description}
+            </Text>
 
-        {renderRecurringInfo()}
+            {/* Tags */}
+            {item.tags && item.tags.length > 0 && (
+              <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.xs }]}>
+                {item.tags.map((tag, index) => (
+                  <Tag key={index} label={tag} isSelected={false} disabled />
+                ))}
+              </View>
+            )}
+          </View>
 
-        <View style={styles.locationsContainer}>
-          <Text style={styles.locationsTitle}>Locations:</Text>
-          {item.locations.map((location, index) => (
-            <View key={index} style={styles.locationItem}>
-              <Text style={styles.locationName}>
-                📍 {location.name}
+          {/* Date & Time */}
+          <View style={{
+            backgroundColor: colors.gray[100],
+            padding: spacing.base,
+            borderRadius: borderRadius.lg,
+            marginBottom: spacing.lg,
+          }}>
+            <View style={[commonStyles.row, { marginBottom: spacing.xs }]}>
+              <Ionicons name="calendar-outline" size={20} color={colors.gray[600]} style={{ marginRight: spacing.xs }} />
+              <Text style={[commonStyles.text, { color: colors.gray[900], fontWeight: '500' }]}>
+                {formatDate(item.startDate)}
               </Text>
-              <View style={styles.mapContainer}>
-                <MapView
-                  style={styles.map}
-                  initialRegion={{
-                    latitude: location.latitude,
-                    longitude: location.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                >
-                  <Marker
-                    coordinate={{
+            </View>
+            <View style={commonStyles.row}>
+              <Ionicons name="time-outline" size={20} color={colors.gray[600]} style={{ marginRight: spacing.xs }} />
+              <Text style={[commonStyles.text, { color: colors.gray[600] }]}>
+                {formatTime(item.startTime)} - {formatTime(item.endTime)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Recurring Info */}
+          {item.type === 'recurring' && (
+            <View style={{
+              backgroundColor: colors.primary + '10',
+              padding: spacing.base,
+              borderRadius: borderRadius.lg,
+              marginBottom: spacing.lg,
+            }}>
+              <Text style={[commonStyles.text, { color: colors.primary, fontWeight: '500' }]}>
+                Repeats {item.repeatFrequency}ly
+                {item.repeatDays && item.repeatDays.length > 0 && 
+                  ` on ${item.repeatDays.join(', ')}`}
+              </Text>
+              {item.endDate && (
+                <Text style={[commonStyles.textSecondary, { 
+                  fontSize: typography.fontSize.sm,
+                  marginTop: spacing.xs,
+                  color: colors.primary + '99'
+                }]}>
+                  Until {formatDate(item.endDate)}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* Participant Requests */}
+          {renderParticipants(item)}
+
+          {/* Locations */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <Text style={[commonStyles.subtitle, { marginBottom: spacing.base }]}>
+              Locations
+            </Text>
+            {item.locations.map((location, index) => (
+              <View key={index} style={{ marginBottom: index < item.locations.length - 1 ? spacing.base : 0 }}>
+                <Text style={[commonStyles.text, { 
+                  fontWeight: '500',
+                  marginBottom: spacing.xs,
+                  color: colors.gray[900]
+                }]}>
+                  📍 {location.name}
+                </Text>
+                <View style={{ 
+                  height: 120,
+                  borderRadius: borderRadius.lg,
+                  overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: colors.gray[200],
+                }}>
+                  <MapView
+                    style={{ width: '100%', height: '100%' }}
+                    initialRegion={{
                       latitude: location.latitude,
                       longitude: location.longitude,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
                     }}
-                    title={location.name}
-                  />
-                </MapView>
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                  >
+                    <Marker
+                      coordinate={{
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                      }}
+                      title={location.name}
+                    />
+                  </MapView>
+                </View>
               </View>
+            ))}
+          </View>
+
+          {/* Footer */}
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.gray[100], paddingTop: spacing.lg }}>
+            <Text style={[commonStyles.textTertiary, { marginBottom: spacing.base }]}>
+              Created {new Date(item.createdAt).toLocaleDateString()}
+            </Text>
+
+            <View style={[commonStyles.row, { justifyContent: 'flex-end', gap: spacing.sm }]}>
+              <TouchableOpacity
+                style={[commonStyles.button, { 
+                  backgroundColor: colors.white,
+                  borderWidth: 1,
+                  borderColor: colors.success,
+                  paddingVertical: spacing.sm,
+                  paddingHorizontal: spacing.lg,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.xs,
+                }]}
+                onPress={() => {
+                  router.push({
+                    pathname: '/(tabs)/add',
+                    params: { eventId: item._id }
+                  });
+                }}
+              >
+                <Ionicons name="pencil" size={16} color={colors.success} />
+                <Text style={[commonStyles.text, { 
+                  color: colors.success,
+                  fontSize: typography.fontSize.sm,
+                  fontWeight: '500'
+                }]}>
+                  Edit
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[commonStyles.button, { 
+                  backgroundColor: colors.white,
+                  borderWidth: 1,
+                  borderColor: colors.danger,
+                  paddingVertical: spacing.sm,
+                  paddingHorizontal: spacing.lg,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.xs,
+                }]}
+                onPress={() => handleDeleteEvent(item._id, item.title)}
+              >
+                <Ionicons name="trash" size={16} color={colors.danger} />
+                <Text style={[commonStyles.text, { 
+                  color: colors.danger,
+                  fontSize: typography.fontSize.sm,
+                  fontWeight: '500'
+                }]}>
+                  Delete
+                </Text>
+              </TouchableOpacity>
             </View>
-          ))}
-        </View>
-
-        <Text style={styles.createdAt}>
-          Created {new Date(item.createdAt).toLocaleDateString()}
-        </Text>
-
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.editButton]}
-            onPress={() => {
-              router.push({
-                pathname: '/(tabs)/add',
-                params: { eventId: item._id }
-              });
-            }}
-          >
-            <Ionicons name="pencil" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>Edit</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={() => deleteEvent(item._id)}
-          >
-            <Ionicons name="trash" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>Delete</Text>
-          </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
-  }, [deleteEvent, handleAcceptRequest, handleRejectRequest]);
+  }, [handleDeleteEvent, renderParticipants]);
 
   const keyExtractor = useCallback((item: Event) => item._id, []);
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
+      <View style={commonStyles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Manage Events</Text>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => router.push('/(tabs)/add')}
-        >
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
-      {events.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="calendar-outline" size={64} color="#666" />
-          <Text style={styles.emptyText}>You haven't created any events yet</Text>
-          <TouchableOpacity
-            style={styles.createButton}
+    <View style={[commonStyles.container, { backgroundColor: colors.white }]}>
+      {alertConfig && (
+        <CustomAlert
+          visible={showAlert}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+        />
+      )}
+
+      {/* Header */}
+      <View style={{
+        backgroundColor: colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.gray[200],
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.xl,
+        paddingBottom: spacing.lg,
+      }}>
+        <View style={[commonStyles.row, { justifyContent: 'space-between', alignItems: 'center' }]}>
+          <Text style={[commonStyles.title, { color: colors.gray[900], marginBottom: 0 }]}>
+            Manage Events
+          </Text>
+          <TouchableOpacity 
+            style={[commonStyles.button, { 
+              backgroundColor: colors.primary,
+              paddingVertical: spacing.xs,
+              paddingHorizontal: spacing.sm,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.xs,
+              borderRadius: borderRadius.lg,
+            }]}
             onPress={() => router.push('/(tabs)/add')}
           >
-            <Text style={styles.createButtonText}>Create Your First Event</Text>
+            <Ionicons name="add-circle-outline" size={14} color={colors.white} />
+            <Text style={[commonStyles.text, { 
+              color: colors.white,
+              fontSize: typography.fontSize.xs,
+              fontWeight: '500'
+            }]}>
+              Add Event
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      {/* Content */}
+      {events.length === 0 ? (
+        <View style={{ 
+          flex: 1, 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          paddingHorizontal: spacing.xl,
+          backgroundColor: colors.white,
+        }}>
+          <View style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            backgroundColor: colors.gray[100],
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: spacing.lg,
+          }}>
+            <Ionicons name="calendar-outline" size={40} color={colors.gray[400]} />
+          </View>
+          <Text style={[commonStyles.subtitle, { 
+            color: colors.gray[900],
+            marginBottom: spacing.sm,
+            textAlign: 'center'
+          }]}>
+            No Events Yet
+          </Text>
+          <Text style={[commonStyles.text, { 
+            color: colors.gray[600],
+            marginBottom: spacing.xl,
+            textAlign: 'center',
+            lineHeight: typography.lineHeight.relaxed
+          }]}>
+            You haven't created any events yet. Start by creating your first event!
+          </Text>
+          <TouchableOpacity
+            style={[commonStyles.button, { 
+              backgroundColor: colors.primary,
+              paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.xl,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.sm,
+            }]}
+            onPress={() => router.push('/(tabs)/add')}
+          >
+            <Ionicons name="add-circle" size={20} color={colors.white} />
+            <Text style={[commonStyles.buttonText]}>Create Event</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -633,25 +1079,21 @@ export default function ManageScreen() {
           data={events}
           renderItem={renderEvent}
           keyExtractor={keyExtractor}
-          contentContainerStyle={styles.listContainer}
-          removeClippedSubviews={false}
-          maxToRenderPerBatch={5}
-          windowSize={3}
-          initialNumToRender={5}
-          onEndReachedThreshold={0.5}
-          maintainVisibleContentPosition={{
-            minIndexForVisible: 0,
+          contentContainerStyle={{ 
+            backgroundColor: colors.white,
           }}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={['#0000ff']}
-              tintColor="#0000ff"
+              colors={[colors.primary]}
+              tintColor={colors.primary}
             />
           }
         />
       )}
+      
       <UserDetailsModal
         visible={!!selectedUserId}
         userId={selectedUserId || ''}
@@ -659,405 +1101,4 @@ export default function ManageScreen() {
       />
     </View>
   );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  addButton: {
-    backgroundColor: '#007AFF',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContainer: {
-    paddingBottom: 16,
-  },
-  eventCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  eventTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#333',
-  },
-  eventDescription: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 12,
-  },
-  dateTimeInfo: {
-    marginBottom: 12,
-  },
-  dateTimeText: {
-    fontSize: 14,
-    color: '#444',
-    marginBottom: 4,
-  },
-  recurringInfo: {
-    backgroundColor: '#f0f8ff',
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 12,
-  },
-  recurringText: {
-    fontSize: 14,
-    color: '#0066cc',
-    fontWeight: '500',
-  },
-  endDateText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 12,
-  },
-  tag: {
-    backgroundColor: '#e1f5fe',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    margin: 4,
-  },
-  tagText: {
-    fontSize: 12,
-    color: '#0288d1',
-    fontWeight: '500',
-  },
-  locationsContainer: {
-    marginBottom: 12,
-  },
-  locationsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
-  },
-  locationItem: {
-    marginBottom: 12,
-  },
-  locationName: {
-    fontSize: 14,
-    color: '#444',
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  mapContainer: {
-    height: 120,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  map: {
-    width: '100%',
-    height: '100%',
-  },
-  createdAt: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 12,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    gap: 4,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  editButton: {
-    backgroundColor: '#4CAF50',
-  },
-  deleteButton: {
-    backgroundColor: '#ff4444',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 100,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  createButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  requestsSection: {
-    marginTop: 16,
-    marginBottom: 12,
-    backgroundColor: '#f8f9fa',
-    padding: 12,
-    borderRadius: 8,
-  },
-  requestsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
-  requestItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  requestInfo: {
-    flex: 1,
-    padding: 8,
-  },
-  requestName: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-  },
-  requestEmail: {
-    fontSize: 12,
-    color: '#666',
-  },
-  requestActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  requestButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  acceptButton: {
-    backgroundColor: '#4CAF50',
-  },
-  rejectButton: {
-    backgroundColor: '#ff4444',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  userModal: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    height: Dimensions.get('window').height * 0.8,
-    width: '100%',
-    overflow: 'hidden',
-  },
-  userModalContent: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  closeButton: {
-    padding: 8,
-  },
-  closeButtonText: {
-    fontSize: 24,
-    color: '#666',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#666',
-  },
-  retryButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 16,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  errorText: {
-    color: '#ff4444',
-    fontSize: 16,
-  },
-  userProfile: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  userPhoto: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 16,
-  },
-  userPhotoPlaceholder: {
-    backgroundColor: '#e1e1e1',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  userEmail: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 16,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 4,
-    paddingHorizontal: 16,
-  },
-  infoText: {
-    fontSize: 16,
-    color: '#666',
-    marginLeft: 8,
-  },
-  bioContainer: {
-    width: '100%',
-    padding: 16,
-    marginTop: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-  },
-  bioText: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 24,
-  },
-  interestsSection: {
-    width: '100%',
-    padding: 16,
-  },
-  interestsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  interestTag: {
-    backgroundColor: '#E1F5FE',
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    margin: 4,
-  },
-  interestText: {
-    color: '#0288D1',
-  },
-  sliderContainer: {
-    width: '100%',
-    aspectRatio: 1,
-    marginBottom: 16,
-  },
-  imageWrapper: {
-    width: Dimensions.get('window').width,
-    aspectRatio: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-  sliderImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'contain',
-  },
-  paginationDots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 10,
-    width: '100%',
-  },
-  paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
-    marginHorizontal: 4,
-  },
-  paginationDotActive: {
-    backgroundColor: '#fff',
-  },
-}); 
+} 
