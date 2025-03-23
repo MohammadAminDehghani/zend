@@ -10,6 +10,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { COMMON_INTERESTS } from '../constants/interests';
+import Tag from '../components/Tag';
+import CustomAlert from '../components/CustomAlert';
+import { useAlert } from '../utils/alert';
 
 interface UserProfile {
   id?: string;
@@ -40,11 +44,13 @@ export default function ProfileScreen() {
     pictures: []
   });
   const [tempProfile, setTempProfile] = useState<UserProfile | null>(null);
-  const [newInterest, setNewInterest] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
+  const [showLogoutAlert, setShowLogoutAlert] = useState(false);
+  const [showSaveAlert, setShowSaveAlert] = useState(false);
+  const { showAlert, alertConfig, show, hide } = useAlert();
 
   useEffect(() => {
     if (token) {
@@ -97,74 +103,74 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     if (!validateProfile()) return;
+    show({
+      title: 'Save Changes',
+      message: 'Are you sure you want to save these changes?',
+      buttons: [
+        {
+          text: 'Cancel',
+          onPress: hide,
+          style: 'destructive'
+        },
+        {
+          text: 'Save',
+          onPress: async () => {
+            try {
+              setIsSaving(true);
+              const config = {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              };
 
-    try {
-      setIsSaving(true);
-      const config = {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+              const response = await axios.patch(`${API_URL}/api/auth/profile`, {
+                name: tempProfile?.name,
+                email: tempProfile?.email,
+                phone: tempProfile?.phone,
+                gender: tempProfile?.gender,
+                interests: tempProfile?.interests,
+                bio: tempProfile?.bio
+              }, config);
+
+              setProfile(response.data);
+              setTempProfile(null);
+              setIsEditing(false);
+              hide();
+              Alert.alert('Success', 'Profile saved successfully');
+            } catch (error: any) {
+              const errorMessage = error.response?.data?.message || 'Failed to save profile';
+              Alert.alert('Error', errorMessage);
+              console.error('Error saving profile:', error);
+            } finally {
+              setIsSaving(false);
+            }
+          }
         }
-      };
-
-      const response = await axios.patch(`${API_URL}/api/auth/profile`, {
-        name: tempProfile?.name,
-        email: tempProfile?.email,
-        phone: tempProfile?.phone,
-        gender: tempProfile?.gender,
-        interests: tempProfile?.interests,
-        bio: tempProfile?.bio
-      }, config);
-
-      setProfile(response.data);
-      setTempProfile(null);
-      setIsEditing(false);
-      Alert.alert('Success', 'Profile saved successfully');
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Failed to save profile';
-      Alert.alert('Error', errorMessage);
-      console.error('Error saving profile:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const addInterest = () => {
-    if (newInterest.trim() && !profile.interests.includes(newInterest.trim())) {
-      setProfile({
-        ...profile,
-        interests: [...profile.interests, newInterest.trim()]
-      });
-      setNewInterest('');
-    }
-  };
-
-  const removeInterest = (interest: string) => {
-    setProfile({
-      ...profile,
-      interests: profile.interests.filter(i => i !== interest)
+      ]
     });
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
+  const handleLogout = () => {
+    show({
+      title: 'Logout',
+      message: 'Are you sure you want to logout?',
+      buttons: [
         {
           text: 'Cancel',
-          style: 'cancel'
+          onPress: hide,
+          style: 'destructive'
         },
         {
           text: 'Logout',
-          style: 'destructive',
           onPress: async () => {
+            hide();
             await logout();
             router.replace('/login');
           }
         }
       ]
-    );
+    });
   };
 
   const handleImagePick = async () => {
@@ -290,51 +296,13 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
-      {/* Sticky Edit Bar */}
-      {isEditing && (
-        <View style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 100,
-          backgroundColor: colors.white,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.gray[200],
-          padding: spacing.sm,
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          shadowColor: colors.shadow.color,
-          shadowOffset: colors.shadow.offset,
-          shadowOpacity: colors.shadow.opacity,
-          shadowRadius: colors.shadow.radius,
-          elevation: 3,
-        }}>
-          <TouchableOpacity 
-            style={[commonStyles.button, { 
-              backgroundColor: 'transparent',
-              paddingVertical: spacing.xs,
-              paddingHorizontal: spacing.base,
-            }]}
-            onPress={handleCancel}
-          >
-            <Text style={[commonStyles.text, { color: colors.gray[700] }]}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[commonStyles.button, { 
-              backgroundColor: colors.primary,
-              paddingVertical: spacing.xs,
-              paddingHorizontal: spacing.base,
-            }]}
-            onPress={handleSave}
-            disabled={isSaving}
-          >
-            <Text style={[commonStyles.buttonText, { fontSize: typography.fontSize.base }]}>
-              {isSaving ? 'Saving...' : 'Save'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+      {alertConfig && (
+        <CustomAlert
+          visible={showAlert}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+        />
       )}
 
       <ScrollView style={[commonStyles.container, { backgroundColor: colors.white }]}>
@@ -538,31 +506,13 @@ export default function ProfileScreen() {
                 <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>Gender</Text>
                 <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
                   {(['man', 'woman', 'other'] as Gender[]).map((gender) => (
-                    <TouchableOpacity
+                    <Tag
                       key={gender}
-                      style={[
-                        commonStyles.tag,
-                        {
-                          backgroundColor: (isEditing ? tempProfile?.gender : profile.gender) === gender ? colors.primary : colors.gray[100],
-                          borderWidth: 1,
-                          borderColor: (isEditing ? tempProfile?.gender : profile.gender) === gender ? colors.primary : colors.gray[200],
-                          paddingHorizontal: spacing.base,
-                          paddingVertical: spacing.sm,
-                        },
-                        !isEditing && commonStyles.buttonDisabled
-                      ]}
+                      label={gender.charAt(0).toUpperCase() + gender.slice(1)}
+                      isSelected={(isEditing ? tempProfile?.gender : profile.gender) === gender}
                       onPress={() => isEditing && setTempProfile(prev => prev ? { ...prev, gender } : null)}
-                    >
-                      <Text style={[
-                        commonStyles.tagText,
-                        { 
-                          color: (isEditing ? tempProfile?.gender : profile.gender) === gender ? colors.white : colors.gray[700],
-                          fontSize: typography.fontSize.base,
-                        }
-                      ]}>
-                        {gender.charAt(0).toUpperCase() + gender.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
+                      disabled={!isEditing}
+                    />
                   ))}
                 </View>
               </View>
@@ -571,59 +521,24 @@ export default function ProfileScreen() {
               <View>
                 <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>Interests</Text>
                 <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
-                  {(isEditing ? tempProfile?.interests : profile.interests).map((interest, index) => (
-                    <View key={index} style={[
-                      commonStyles.tag, 
-                      { 
-                        backgroundColor: colors.gray[100],
-                        paddingHorizontal: spacing.base,
-                        paddingVertical: spacing.sm,
-                        borderRadius: borderRadius.full,
-                        borderWidth: 1,
-                        borderColor: colors.gray[200],
-                      }
-                    ]}>
-                      <Text style={[commonStyles.tagText, { color: colors.primary, fontSize: typography.fontSize.base }]}>
-                        {interest}
-                      </Text>
-                      {isEditing && (
-                        <TouchableOpacity 
-                          onPress={() => setTempProfile(prev => prev ? {
-                            ...prev,
-                            interests: prev.interests.filter(i => i !== interest)
-                          } : null)}
-                          style={{ marginLeft: spacing.xs }}
-                        >
-                          <Ionicons name="close-circle" size={16} color={colors.primary} />
-                        </TouchableOpacity>
-                      )}
-                    </View>
+                  {COMMON_INTERESTS.map((interest) => (
+                    <Tag
+                      key={interest}
+                      label={interest}
+                      isSelected={(isEditing ? tempProfile?.interests || [] : profile.interests || []).includes(interest)}
+                      onPress={() => {
+                        if (!isEditing) return;
+                        setTempProfile(prev => prev ? {
+                          ...prev,
+                          interests: (prev.interests || []).includes(interest)
+                            ? (prev.interests || []).filter(i => i !== interest)
+                            : [...(prev.interests || []), interest]
+                        } : null);
+                      }}
+                      disabled={!isEditing}
+                    />
                   ))}
                 </View>
-                {isEditing && (
-                  <View style={[commonStyles.row, { gap: spacing.sm, marginTop: spacing.base }]}>
-                    <TextInput
-                      style={[commonStyles.input, { flex: 1, borderColor: colors.gray[200] }]}
-                      value={newInterest}
-                      onChangeText={setNewInterest}
-                      placeholder="Add a new interest"
-                    />
-                    <TouchableOpacity 
-                      style={[commonStyles.button, commonStyles.buttonPrimary]}
-                      onPress={() => {
-                        if (newInterest.trim() && !tempProfile?.interests.includes(newInterest.trim())) {
-                          setTempProfile(prev => prev ? {
-                            ...prev,
-                            interests: [...prev.interests, newInterest.trim()]
-                          } : null);
-                          setNewInterest('');
-                        }
-                      }}
-                    >
-                      <Text style={commonStyles.buttonText}>Add</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
               </View>
 
               {/* Bio */}

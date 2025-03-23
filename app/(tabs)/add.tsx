@@ -8,6 +8,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
+import Tag from '../components/Tag';
 
 // Common tags for events
 const COMMON_TAGS = [
@@ -571,21 +572,12 @@ export default function AddScreen() {
         <Text style={commonStyles.subtitle}>Tags</Text>
         <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.xs }]}>
           {COMMON_TAGS.map((tag) => (
-            <TouchableOpacity
+            <Tag
               key={tag}
-              style={[
-                commonStyles.tag,
-                form.tags.includes(tag) && { backgroundColor: colors.primary }
-              ]}
+              label={tag}
+              isSelected={form.tags.includes(tag)}
               onPress={() => toggleTag(tag)}
-            >
-              <Text style={[
-                commonStyles.tagText,
-                form.tags.includes(tag) && { color: colors.white }
-              ]}>
-                {tag}
-              </Text>
-            </TouchableOpacity>
+            />
           ))}
         </View>
       </View>
