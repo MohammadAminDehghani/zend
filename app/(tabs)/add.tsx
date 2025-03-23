@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, Text, Alert, ScrollView, Platform, PanResponder, Animated } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, Alert, ScrollView, Platform, PanResponder, Animated, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { API_URL } from '../config/api';
 import { useAuth } from '../context/auth';
@@ -9,6 +9,15 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
 import Tag from '../components/Tag';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { SectionHeader } from '../components/SectionHeader';
+import { FormInput } from '../components/FormInput';
+import { LocationPicker } from '../components/LocationPicker';
+import { DateTimePickerField } from '../components/DateTimePickerField';
+import { TagSelection } from '../components/TagSelection';
+import { CapacitySelector } from '../components/CapacitySelector';
+import { AccessControlSelector } from '../components/AccessControlSelector';
 
 // Common tags for events
 const COMMON_TAGS = [
@@ -65,6 +74,14 @@ export default function AddScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<'granted' | 'denied' | 'pending'>('pending');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{
+    title?: string;
+    description?: string;
+    location?: string;
+    date?: string;
+    time?: string;
+  }>({});
 
   // Load event data if editing
   useEffect(() => {
@@ -177,8 +194,40 @@ export default function AddScreen() {
     }));
   };
 
+  const validateForm = () => {
+    const newErrors: typeof errors = {};
+    
+    if (!form.title.trim()) {
+      newErrors.title = 'Title is required';
+    }
+    
+    if (!form.description.trim()) {
+      newErrors.description = 'Description is required';
+    } else if (form.description.length > 500) {
+      newErrors.description = 'Description must be less than 500 characters';
+    }
+    
+    if (form.locations.length === 0) {
+      newErrors.location = 'At least one location is required';
+    }
+    
+    if (!form.startDate) {
+      newErrors.date = 'Start date is required';
+    }
+    
+    if (!form.startTime || !form.endTime) {
+      newErrors.time = 'Start and end times are required';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async () => {
+    if (!validateForm()) return;
+    
     try {
+      setIsLoading(true);
       const eventData = {
         ...form,
         creator: userId,
@@ -206,22 +255,6 @@ export default function AddScreen() {
         throw new Error(data.message || `Failed to ${eventId ? 'update' : 'create'} event`);
       }
 
-      // Reset form
-      setForm({
-        title: '',
-        description: '',
-        type: 'one-time',
-        locations: [],
-        startDate: new Date(),
-        startTime: '09:00',
-        endTime: '17:00',
-        tags: [],
-        capacity: 10,
-        status: 'open'
-      });
-      setCurrentLocation(null);
-      setLocationName('');
-      
       Alert.alert('Success', `Event ${eventId ? 'updated' : 'created'} successfully`, [
         {
           text: 'OK',
@@ -231,6 +264,8 @@ export default function AddScreen() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
       Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -294,389 +329,421 @@ export default function AddScreen() {
     setDraggingLocationIndex(index);
   };
 
+  if (isLoading) {
+    return (
+      <View style={commonStyles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
   return (
-    <ScrollView 
-      ref={scrollViewRef}
-      style={commonStyles.container}
-      scrollEnabled={draggingLocationIndex === null}
-    >
-      <View style={[commonStyles.row, { justifyContent: 'space-between', marginBottom: spacing.lg }]}>
-        <Text style={commonStyles.title}>{eventId ? 'Edit Event' : 'Create Event'}</Text>
-      </View>
-
-      <TextInput
-        style={commonStyles.input}
-        placeholder="Event Title"
-        value={form.title}
-        onChangeText={(text) => setForm(prev => ({ ...prev, title: text }))}
-        autoCapitalize="words"
-      />
-
-      <TextInput
-        style={[commonStyles.input, commonStyles.textArea]}
-        placeholder="Event Description"
-        value={form.description}
-        onChangeText={(text) => setForm(prev => ({ ...prev, description: text }))}
-        multiline
-        numberOfLines={4}
-      />
-
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.subtitle}>Date & Time</Text>
-        <TouchableOpacity 
-          style={[commonStyles.input, { marginBottom: spacing.sm }]}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Text style={commonStyles.text}>Start Date: {form.startDate.toLocaleDateString()}</Text>
-        </TouchableOpacity>
-
-        <View style={[commonStyles.row, { gap: spacing.sm }]}>
-          <TouchableOpacity 
-            style={[commonStyles.input, { flex: 1 }]}
-            onPress={() => setShowTimePicker('start')}
-          >
-            <Text style={commonStyles.text}>Start Time: {form.startTime}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[commonStyles.input, { flex: 1 }]}
-            onPress={() => setShowTimePicker('end')}
-          >
-            <Text style={commonStyles.text}>End Time: {form.endTime}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.subtitle}>Add Location</Text>
-        <TextInput
-          style={commonStyles.input}
-          placeholder="Location Name"
-          value={locationName}
-          onChangeText={setLocationName}
-        />
-        <View style={[commonStyles.card, { height: 200, marginVertical: spacing.sm }]}>
-          {locationPermissionStatus === 'pending' ? (
-            <View style={[commonStyles.center, { padding: spacing.lg }]}>
-              <Text style={[commonStyles.text, { textAlign: 'center', marginBottom: spacing.base }]}>
-                We need your location to show nearby places
-              </Text>
-              <TouchableOpacity
-                style={[commonStyles.button, commonStyles.buttonPrimary]}
-                onPress={requestLocationPermission}
-              >
-                <Text style={commonStyles.buttonText}>Grant Location Access</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <MapView
-              provider={PROVIDER_GOOGLE}
-              style={{ width: '100%', height: '100%' }}
-              initialRegion={{
-                latitude: userLocation?.latitude || 37.78825,
-                longitude: userLocation?.longitude || -122.4324,
-                latitudeDelta: 0.0922,
-                longitudeDelta: 0.0421,
-              }}
-              showsUserLocation={locationPermissionStatus === 'granted'}
-              onPress={handleMapPress}
-            >
-              {currentLocation && (
-                <Marker
-                  coordinate={{
-                    latitude: currentLocation.latitude,
-                    longitude: currentLocation.longitude,
-                  }}
-                />
-              )}
-            </MapView>
-          )}
-        </View>
-        <TouchableOpacity 
-          style={[commonStyles.button, commonStyles.buttonSuccess]} 
-          onPress={addLocation}
-          disabled={!currentLocation || !locationName}
-        >
-          <Text style={commonStyles.buttonText}>Add Location</Text>
-        </TouchableOpacity>
-
-        {form.locations.length > 0 && (
-          <View style={commonStyles.section}>
-            <Text style={commonStyles.subtitle}>Added Locations</Text>
-            <Text style={[commonStyles.textSecondary, { fontStyle: 'italic', marginBottom: spacing.sm }]}>
-              Hold and drag ≡ to reorder locations
+    <View style={{ flex: 1, backgroundColor: colors.white }}>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={[commonStyles.container, { backgroundColor: colors.white }]}
+        scrollEnabled={draggingLocationIndex === null}
+      >
+        {/* Header Section */}
+        <View style={{
+          padding: spacing.md,
+          paddingTop: spacing.lg,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.gray[200],
+          marginBottom: spacing.sm,
+        }}>
+          <View style={[commonStyles.row, { justifyContent: 'space-between' }]}>
+            <Text style={[commonStyles.title, { color: colors.gray[900] }]}>
+              {eventId ? 'Edit Event' : 'Create New Event'}
             </Text>
-            {form.locations.map((loc, index) => (
-              <Animated.View
-                key={index}
-                style={[
-                  commonStyles.card,
-                  draggingLocationIndex === index && {
-                    transform: [{ translateY: pan.y }],
-                    shadowColor: colors.shadow.color,
-                    shadowOffset: colors.shadow.offset,
-                    shadowOpacity: colors.shadow.opacity,
-                    shadowRadius: colors.shadow.radius,
-                    elevation: 8,
-                  }
-                ]}
-                {...(draggingLocationIndex === index ? panResponder.panHandlers : {})}
-              >
-                <View style={commonStyles.row}>
-                  <TouchableOpacity
-                    onPressIn={() => handleLocationDragStart(index)}
-                    style={{ marginRight: spacing.sm }}
-                  >
-                    <Ionicons name="menu" size={24} color={colors.gray[600]} />
-                  </TouchableOpacity>
-                  <View style={{ flex: 1 }}>
-                    <Text style={commonStyles.text}>{loc.name}</Text>
-                    <Text style={commonStyles.textSecondary}>
-                      {loc.latitude.toFixed(6)}, {loc.longitude.toFixed(6)}
-                    </Text>
-                  </View>
-                  <TouchableOpacity 
-                    onPress={() => removeLocation(index)}
-                    style={{ padding: spacing.xs }}
-                  >
-                    <Ionicons name="close-circle" size={24} color={colors.danger} />
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
-            ))}
           </View>
-        )}
-      </View>
-
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.subtitle}>Event Type</Text>
-        <View style={[commonStyles.row, { gap: spacing.sm }]}>
-          <TouchableOpacity
-            style={[
-              commonStyles.button,
-              {
-                flex: 1,
-                backgroundColor: form.type === 'one-time' ? colors.primary : colors.background.primary,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }
-            ]}
-            onPress={() => setForm(prev => ({ ...prev, type: 'one-time' }))}
-          >
-            <Text style={[
-              commonStyles.text,
-              form.type === 'one-time' && { color: colors.white }
-            ]}>
-              One-time Event
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              commonStyles.button,
-              {
-                flex: 1,
-                backgroundColor: form.type === 'recurring' ? colors.primary : colors.background.primary,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }
-            ]}
-            onPress={() => setForm(prev => ({ ...prev, type: 'recurring' }))}
-          >
-            <Text style={[
-              commonStyles.text,
-              form.type === 'recurring' && { color: colors.white }
-            ]}>
-              Recurring Event
-            </Text>
-          </TouchableOpacity>
         </View>
-      </View>
 
-      {form.type === 'recurring' && (
-        <View style={commonStyles.section}>
-          <Text style={commonStyles.subtitle}>Repeat Frequency</Text>
-          <View style={[commonStyles.row, { gap: spacing.sm }]}>
-            {['daily', 'weekly', 'monthly'].map((freq) => (
+        {/* Main Content */}
+        <View style={{ padding: spacing.sm }}>
+          {/* Basic Information */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <SectionHeader title="Basic Information" />
+            <View style={{ gap: spacing.sm }}>
+              <FormInput
+                label="Event Title"
+                required
+                value={form.title}
+                onChangeText={(text) => {
+                  setForm(prev => ({ ...prev, title: text }));
+                  setErrors(prev => ({ ...prev, title: undefined }));
+                }}
+                error={errors.title}
+                placeholder="Enter event title"
+                autoCapitalize="words"
+              />
+            </View>
+          </View>
+
+          {/* Date & Time Section */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <SectionHeader title="Date & Time" />
+            <View style={{ gap: spacing.sm }}>
+              <DateTimePickerField
+                label="Start Date"
+                required
+                value={form.startDate}
+                onPress={() => setShowDatePicker(true)}
+                error={errors.date}
+              />
+
+              <View style={[commonStyles.row, { gap: spacing.sm }]}>
+                <DateTimePickerField
+                  label="Start Time"
+                  required
+                  value={form.startTime}
+                  onPress={() => setShowTimePicker('start')}
+                  error={errors.time}
+                  style={{ flex: 1 }}
+                />
+                <DateTimePickerField
+                  label="End Time"
+                  required
+                  value={form.endTime}
+                  onPress={() => setShowTimePicker('end')}
+                  error={errors.time}
+                  style={{ flex: 1 }}
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Location Section */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <SectionHeader title="Location" required />
+            <LocationPicker
+              currentLocation={currentLocation}
+              locationName={locationName}
+              setLocationName={setLocationName}
+              handleMapPress={handleMapPress}
+              addLocation={addLocation}
+              locations={form.locations}
+              removeLocation={removeLocation}
+              draggingLocationIndex={draggingLocationIndex}
+              panResponder={panResponder}
+              pan={pan}
+              handleLocationDragStart={handleLocationDragStart}
+              locationPermissionStatus={locationPermissionStatus}
+              requestLocationPermission={requestLocationPermission}
+              userLocation={userLocation}
+              error={errors.location}
+            />
+          </View>
+
+          {/* Event Type Section */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <SectionHeader title="Event Type" />
+            <View style={[commonStyles.row, { gap: spacing.xs }]}>
               <TouchableOpacity
-                key={freq}
                 style={[
                   commonStyles.button,
                   {
                     flex: 1,
-                    backgroundColor: form.repeatFrequency === freq ? colors.primary : colors.background.primary,
+                    backgroundColor: form.type === 'one-time' ? colors.primary : colors.white,
                     borderWidth: 1,
-                    borderColor: colors.border,
+                    borderColor: form.type === 'one-time' ? colors.primary : colors.gray[200],
+                    paddingVertical: spacing.xs,
+                    paddingHorizontal: spacing.sm,
                   }
                 ]}
-                onPress={() => setForm(prev => ({ ...prev, repeatFrequency: freq as any }))}
+                onPress={() => setForm(prev => ({ ...prev, type: 'one-time' }))}
               >
                 <Text style={[
                   commonStyles.text,
-                  form.repeatFrequency === freq && { color: colors.white }
+                  { 
+                    color: form.type === 'one-time' ? colors.white : colors.gray[700],
+                    fontSize: typography.fontSize.sm,
+                  }
                 ]}>
-                  {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                  One-time Event
                 </Text>
               </TouchableOpacity>
-            ))}
+              <TouchableOpacity
+                style={[
+                  commonStyles.button,
+                  {
+                    flex: 1,
+                    backgroundColor: form.type === 'recurring' ? colors.primary : colors.white,
+                    borderWidth: 1,
+                    borderColor: form.type === 'recurring' ? colors.primary : colors.gray[200],
+                    paddingVertical: spacing.xs,
+                    paddingHorizontal: spacing.sm,
+                  }
+                ]}
+                onPress={() => setForm(prev => ({ ...prev, type: 'recurring' }))}
+              >
+                <Text style={[
+                  commonStyles.text,
+                  { 
+                    color: form.type === 'recurring' ? colors.white : colors.gray[700],
+                    fontSize: typography.fontSize.sm,
+                  }
+                ]}>
+                  Recurring Event
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {form.repeatFrequency === 'weekly' && (
-            <View style={commonStyles.section}>
-              <Text style={commonStyles.subtitle}>Repeat Days</Text>
-              <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.xs }]}>
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                  <TouchableOpacity
-                    key={day}
-                    style={[
-                      commonStyles.button,
-                      {
-                        backgroundColor: form.repeatDays?.includes(day) ? colors.primary : colors.background.primary,
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                        paddingHorizontal: spacing.sm,
-                        minWidth: 40,
-                      }
-                    ]}
-                    onPress={() => {
-                      setForm(prev => ({
-                        ...prev,
-                        repeatDays: prev.repeatDays?.includes(day)
-                          ? prev.repeatDays.filter(d => d !== day)
-                          : [...(prev.repeatDays || []), day]
-                      }));
-                    }}
-                  >
-                    <Text style={[
-                      commonStyles.text,
-                      form.repeatDays?.includes(day) && { color: colors.white }
-                    ]}>
-                      {day}
+          {/* Recurring Event Options */}
+          {form.type === 'recurring' && (
+            <View style={{ marginBottom: spacing.lg }}>
+              <SectionHeader title="Recurring Options" />
+              <View style={{ gap: spacing.sm }}>
+                <View>
+                  <Text style={[commonStyles.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>
+                    Repeat Frequency
+                  </Text>
+                  <View style={[commonStyles.row, { gap: spacing.xs }]}>
+                    {['daily', 'weekly', 'monthly'].map((freq) => (
+                      <TouchableOpacity
+                        key={freq}
+                        style={[
+                          commonStyles.button,
+                          {
+                            flex: 1,
+                            backgroundColor: form.repeatFrequency === freq ? colors.primary : colors.white,
+                            borderWidth: 1,
+                            borderColor: form.repeatFrequency === freq ? colors.primary : colors.gray[200],
+                            paddingVertical: spacing.xs,
+                            paddingHorizontal: spacing.sm,
+                          }
+                        ]}
+                        onPress={() => setForm(prev => ({ ...prev, repeatFrequency: freq as any }))}
+                      >
+                        <Text style={[
+                          commonStyles.text,
+                          { 
+                            color: form.repeatFrequency === freq ? colors.white : colors.gray[700],
+                            fontSize: typography.fontSize.sm,
+                          }
+                        ]}>
+                          {freq.charAt(0).toUpperCase() + freq.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {form.repeatFrequency === 'weekly' && (
+                  <View>
+                    <Text style={[commonStyles.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>
+                      Repeat Days
                     </Text>
-                  </TouchableOpacity>
-                ))}
+                    <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.xs }]}>
+                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                        <TouchableOpacity
+                          key={day}
+                          style={[
+                            commonStyles.button,
+                            {
+                              backgroundColor: form.repeatDays?.includes(day) ? colors.primary : colors.white,
+                              borderWidth: 1,
+                              borderColor: form.repeatDays?.includes(day) ? colors.primary : colors.gray[200],
+                              paddingVertical: spacing.xs,
+                              paddingHorizontal: spacing.sm,
+                              minWidth: 40,
+                            }
+                          ]}
+                          onPress={() => {
+                            setForm(prev => ({
+                              ...prev,
+                              repeatDays: prev.repeatDays?.includes(day)
+                                ? prev.repeatDays.filter(d => d !== day)
+                                : [...(prev.repeatDays || []), day]
+                            }));
+                          }}
+                        >
+                          <Text style={[
+                            commonStyles.text,
+                            { 
+                              color: form.repeatDays?.includes(day) ? colors.white : colors.gray[700],
+                              fontSize: typography.fontSize.sm,
+                            }
+                          ]}>
+                            {day}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                <DateTimePickerField
+                  label="End Date"
+                  value={form.endDate?.toLocaleDateString() || 'Select End Date'}
+                  onPress={() => setShowEndDatePicker(true)}
+                />
               </View>
             </View>
           )}
 
-          <TouchableOpacity 
-            style={[commonStyles.input, { marginBottom: spacing.sm }]}
-            onPress={() => setShowEndDatePicker(true)}
-          >
-            <Text style={commonStyles.text}>
-              End Date: {form.endDate?.toLocaleDateString() || 'Select End Date'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+          {/* Tags Section */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <SectionHeader title="Event Tags" />
+            <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
+              {COMMON_TAGS.map((tag) => (
+                <Tag
+                  key={tag}
+                  label={tag}
+                  isSelected={form.tags.includes(tag)}
+                  onPress={() => toggleTag(tag)}
+                />
+              ))}
+            </View>
+          </View>
 
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.subtitle}>Tags</Text>
-        <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.xs }]}>
-          {COMMON_TAGS.map((tag) => (
-            <Tag
-              key={tag}
-              label={tag}
-              isSelected={form.tags.includes(tag)}
-              onPress={() => toggleTag(tag)}
+          {/* Capacity Section */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <SectionHeader title="Event Capacity" />
+            <CapacitySelector
+              capacity={form.capacity}
+              onIncrease={() => setForm(prev => ({
+                ...prev,
+                capacity: Math.min(99, (prev.capacity || 10) + 1)
+              }))}
+              onDecrease={() => setForm(prev => ({
+                ...prev,
+                capacity: Math.max(1, (prev.capacity || 10) - 1)
+              }))}
+              onChange={(text) => {
+                const num = parseInt(text);
+                if (!isNaN(num) && num >= 1 && num <= 99) {
+                  setForm(prev => ({ ...prev, capacity: num }));
+                }
+              }}
             />
-          ))}
-        </View>
-      </View>
+          </View>
 
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.subtitle}>Capacity</Text>
-        <View style={[commonStyles.row, { justifyContent: 'center', gap: spacing.sm }]}>
-          <TouchableOpacity
-            style={[commonStyles.button, { padding: spacing.sm }]}
-            onPress={() => setForm(prev => ({
-              ...prev,
-              capacity: Math.max(1, (prev.capacity || 10) - 1)
-            }))}
-          >
-            <Ionicons name="remove" size={24} color={colors.gray[600]} />
-          </TouchableOpacity>
-          <TextInput
-            style={[commonStyles.input, { width: 60, textAlign: 'center' }]}
-            value={String(form.capacity || 10)}
-            keyboardType="number-pad"
-            onChangeText={(text) => {
-              const num = parseInt(text);
-              if (!isNaN(num) && num >= 1 && num <= 99) {
-                setForm(prev => ({ ...prev, capacity: num }));
+          {/* Access Control Section */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <SectionHeader title="Access Control" />
+            <View style={[commonStyles.row, { gap: spacing.xs }]}>
+              <TouchableOpacity
+                style={[
+                  commonStyles.button,
+                  {
+                    flex: 1,
+                    backgroundColor: form.status === 'open' ? colors.primary : colors.white,
+                    borderWidth: 1,
+                    borderColor: form.status === 'open' ? colors.primary : colors.gray[200],
+                    paddingVertical: spacing.xs,
+                    paddingHorizontal: spacing.sm,
+                  }
+                ]}
+                onPress={() => setForm(prev => ({ ...prev, status: 'open' }))}
+              >
+                <Text style={[
+                  commonStyles.text,
+                  { 
+                    color: form.status === 'open' ? colors.white : colors.gray[700],
+                    fontSize: typography.fontSize.sm,
+                    textAlign: 'center',
+                  }
+                ]}>
+                  Open
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  commonStyles.button,
+                  {
+                    flex: 1,
+                    backgroundColor: form.status === 'verification_required' ? colors.primary : colors.white,
+                    borderWidth: 1,
+                    borderColor: form.status === 'verification_required' ? colors.primary : colors.gray[200],
+                    paddingVertical: spacing.xs,
+                    paddingHorizontal: spacing.sm,
+                  }
+                ]}
+                onPress={() => setForm(prev => ({ ...prev, status: 'verification_required' }))}
+              >
+                <Text style={[
+                  commonStyles.text,
+                  { 
+                    color: form.status === 'verification_required' ? colors.white : colors.gray[700],
+                    fontSize: typography.fontSize.sm,
+                    textAlign: 'center',
+                  }
+                ]}>
+                  Verification Required
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Description Section */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <SectionHeader title="Description" required />
+            <View>
+              <TextInput
+                style={[
+                  commonStyles.input, 
+                  commonStyles.textArea, 
+                  { borderColor: errors.description ? colors.danger : colors.gray[200] }
+                ]}
+                placeholder="Tell us about your event..."
+                value={form.description}
+                onChangeText={(text) => {
+                  setForm(prev => ({ ...prev, description: text }));
+                  setErrors(prev => ({ ...prev, description: undefined }));
+                }}
+                multiline
+                numberOfLines={4}
+              />
+              <View style={[commonStyles.row, { justifyContent: 'space-between', marginTop: spacing.xs }]}>
+                {errors.description && (
+                  <Text style={[commonStyles.textSecondary, { color: colors.danger }]}>
+                    {errors.description}
+                  </Text>
+                )}
+                <Text style={[commonStyles.textSecondary, { textAlign: 'right' }]}>
+                  {form.description.length}/500
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Submit Button */}
+          <TouchableOpacity 
+            style={[
+              commonStyles.button,
+              { 
+                backgroundColor: colors.white,
+                borderWidth: 1,
+                borderColor: colors.primary,
+                marginBottom: spacing.lg,
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.base,
               }
-            }}
-          />
-          <TouchableOpacity
-            style={[commonStyles.button, { padding: spacing.sm }]}
-            onPress={() => setForm(prev => ({
-              ...prev,
-              capacity: Math.min(99, (prev.capacity || 10) + 1)
-            }))}
+            ]} 
+            onPress={handleSubmit}
+            disabled={isLoading || !form.title || !form.description || form.locations.length === 0}
           >
-            <Ionicons name="add" size={24} color={colors.gray[600]} />
+            {isLoading ? (
+              <ActivityIndicator color={colors.primary} size="small" />
+            ) : (
+              <Text style={[
+                commonStyles.text, 
+                { 
+                  color: colors.primary, 
+                  fontSize: typography.fontSize.base,
+                  fontWeight: '500',
+                }
+              ]}>
+                {eventId ? 'Update Event' : 'Create Event'}
+              </Text>
+            )}
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
 
-      <View style={commonStyles.section}>
-        <Text style={commonStyles.subtitle}>Event Access</Text>
-        <View style={{ gap: spacing.sm }}>
-          <TouchableOpacity
-            style={[
-              commonStyles.card,
-              form.status === 'open' && { backgroundColor: colors.primary }
-            ]}
-            onPress={() => setForm(prev => ({ ...prev, status: 'open' }))}
-          >
-            <Text style={[
-              commonStyles.text,
-              form.status === 'open' && { color: colors.white }
-            ]}>
-              Open Access
-            </Text>
-            <Text style={[
-              commonStyles.textSecondary,
-              form.status === 'open' && { color: colors.white }
-            ]}>
-              Anyone can join this event
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              commonStyles.card,
-              form.status === 'verification_required' && { backgroundColor: colors.primary }
-            ]}
-            onPress={() => setForm(prev => ({ ...prev, status: 'verification_required' }))}
-          >
-            <Text style={[
-              commonStyles.text,
-              form.status === 'verification_required' && { color: colors.white }
-            ]}>
-              Verification Required
-            </Text>
-            <Text style={[
-              commonStyles.textSecondary,
-              form.status === 'verification_required' && { color: colors.white }
-            ]}>
-              Creator must approve join requests
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <TouchableOpacity 
-        style={[
-          commonStyles.button,
-          commonStyles.buttonPrimary,
-          { marginBottom: spacing.xl }
-        ]} 
-        onPress={handleSubmit}
-        disabled={!form.title || !form.description || form.locations.length === 0}
-      >
-        <Text style={commonStyles.buttonText}>
-          {eventId ? 'Update Event' : 'Create Event'}
-        </Text>
-      </TouchableOpacity>
-
+      {/* Date/Time Pickers */}
       {showDatePicker && (
         <DateTimePicker
           value={form.startDate}
@@ -726,6 +793,6 @@ export default function AddScreen() {
           }}
         />
       )}
-    </ScrollView>
+    </View>
   );
 } 
