@@ -1,12 +1,18 @@
 import React from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, Dimensions, Modal, Image, Animated, ScrollView } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { API_URL } from '../config/api';
+import { API_URL, getImageUrl } from '../config/api';
 import { useAuth } from '../context/auth';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { router } from 'expo-router';
 import SocketService from '../services/socket';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
+import CustomAlert from '../components/CustomAlert';
+import { useAlert } from '../utils/alert';
+import { BlurView } from 'expo-blur';
+import Tag from '../components/Tag';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface Location {
   name: string;
@@ -39,6 +45,12 @@ interface Event {
   participants: Array<{
     userId: string;
     status: 'pending' | 'approved' | 'rejected';
+    name?: string;
+    pictures?: Array<{
+      url: string;
+      uploadedAt: string;
+      _id: string;
+    }>;
   }>;
   locations: Location[];
   startDate: string;
@@ -56,13 +68,32 @@ interface CreatorModalProps {
   onClose: () => void;
 }
 
+interface ParticipantModalProps {
+  visible: boolean;
+  participant: {
+    id: string;
+    name: string;
+    email: string;
+    pictures: Array<{
+      url: string;
+      uploadedAt: string;
+      _id: string;
+    }>;
+    phone: string;
+    gender: 'man' | 'woman' | 'other';
+    interests: string[];
+    bio: string;
+  };
+  onClose: () => void;
+}
+
 const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }) => {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [activeSlide, setActiveSlide] = useState(0);
   const flatListRef = useRef<FlatList>(null);
-  const router = useRouter();
   const { user } = useAuth();
   const socketService = SocketService.getInstance();
+  const { showAlert, alertConfig, show, hide } = useAlert();
   
   useEffect(() => {
     if (visible) {
@@ -81,11 +112,14 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
 
   const handleSendMessage = () => {
     if (!user) {
-      Alert.alert('Error', 'You must be logged in to send messages');
+      show({
+        title: 'Error',
+        message: 'You must be logged in to send messages',
+        buttons: [{ text: 'OK', onPress: hide }]
+      });
       return;
     }
 
-    // Navigate to chat screen with creator info
     router.push({
       pathname: '/chat',
       params: {
@@ -99,15 +133,27 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
   };
 
   const renderPaginationDots = () => {
+    if (!creator.pictures || creator.pictures.length <= 1) return null;
+
     return (
-      <View style={styles.paginationDots}>
+      <View style={{
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'absolute',
+        bottom: spacing.sm,
+        width: '100%',
+      }}>
         {creator.pictures.map((_, index) => (
           <View
             key={index}
-            style={[
-              styles.paginationDot,
-              index === activeSlide && styles.paginationDotActive,
-            ]}
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: index === activeSlide ? colors.white : `rgba(255, 255, 255, 0.5)`,
+              marginHorizontal: 4,
+            }}
           />
         ))}
       </View>
@@ -117,16 +163,22 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
   const renderCreatorPhotos = () => {
     if (!creator.pictures || creator.pictures.length === 0) {
       return (
-        <View style={[styles.creatorPhoto, styles.creatorPhotoPlaceholder]}>
-          <Ionicons name="person" size={60} color="#666" />
+        <View style={{
+          width: '100%',
+          aspectRatio: 1,
+          backgroundColor: colors.gray[100],
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <Ionicons name="person" size={60} color={colors.gray[400]} />
         </View>
       );
     }
 
-    const imageSize = Math.min(Dimensions.get('window').width, Dimensions.get('window').width);
+    const imageSize = Dimensions.get('window').width;
 
     return (
-      <View style={styles.sliderContainer}>
+      <View style={{ width: '100%', aspectRatio: 1 }}>
         <FlatList
           ref={flatListRef}
           data={creator.pictures}
@@ -139,15 +191,20 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
             );
             setActiveSlide(currentIndex);
           }}
-          renderItem={({ item }) => (
-            <View style={styles.imageWrapper}>
-              <Image
-                source={{ uri: `${API_URL}${item.url}` }}
-                style={styles.sliderImage}
-                defaultSource={require('../assets/default-avatar.png')}
-              />
-            </View>
-          )}
+          renderItem={({ item }) => {
+            const imageUrl = item.url ? getImageUrl(item.url) : null;
+            const imageSource = imageUrl ? { uri: imageUrl } : undefined;
+            
+            return (
+              <View style={{ width: imageSize, aspectRatio: 1 }}>
+                <Image
+                  source={imageSource || require('../assets/default-avatar.png')}
+                  style={{ width: '100%', height: '100%' }}
+                  defaultSource={require('../assets/default-avatar.png')}
+                />
+              </View>
+            );
+          }}
           keyExtractor={(item) => item._id}
         />
         {renderPaginationDots()}
@@ -179,79 +236,396 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity
-        style={styles.modalOverlay}
+      <TouchableOpacity 
+        style={{ flex: 1 }}
         activeOpacity={1}
         onPress={onClose}
       >
-        <TouchableOpacity
-          style={[
-            styles.creatorModal,
-            {
-              transform: [
-                {
-                  translateY: slideAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [300, 0],
-                  }),
-                },
-              ],
-            },
-          ]}
-          activeOpacity={1}
-          onPress={(e) => e.stopPropagation()}
-        >
-          <ScrollView style={styles.creatorModalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Creator Profile</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>×</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.creatorProfile}>
-              {renderCreatorPhotos()}
-              <Text style={styles.creatorName}>{creator.name}</Text>
-              <Text style={styles.creatorEmail}>{creator.email}</Text>
-              
-              {creator.phone && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="call-outline" size={20} color="#666" />
-                  <Text style={styles.infoText}>{creator.phone}</Text>
-                </View>
-              )}
-
-              {creator.gender && (
-                <View style={styles.infoRow}>
-                  <Ionicons name="person-outline" size={20} color="#666" />
-                  <Text style={styles.infoText}>
-                    {creator.gender.charAt(0).toUpperCase() + creator.gender.slice(1)}
-                  </Text>
-                </View>
-              )}
-
-              {creator.bio && (
-                <View style={styles.bioContainer}>
-                  <Text style={styles.sectionTitle}>Bio</Text>
-                  <Text style={styles.bioText}>{creator.bio}</Text>
-                </View>
-              )}
-
-              <View style={styles.interestsSection}>
-                <Text style={styles.sectionTitle}>Interests</Text>
-                {renderInterests()}
-              </View>
-
-              <TouchableOpacity
-                style={styles.sendMessageButton}
-                onPress={handleSendMessage}
+        <BlurView intensity={20} style={{ flex: 1 }}>
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            justifyContent: 'flex-end',
+          }}>
+            <TouchableOpacity 
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Animated.View
+                style={[
+                  {
+                    backgroundColor: colors.white,
+                    borderTopLeftRadius: borderRadius.xl,
+                    borderTopRightRadius: borderRadius.xl,
+                    height: Dimensions.get('window').height * 0.8,
+                    width: '100%',
+                    overflow: 'hidden',
+                    transform: [
+                      {
+                        translateY: slideAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [300, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
               >
-                <Ionicons name="chatbubble-outline" size={20} color="#fff" />
-                <Text style={styles.sendMessageButtonText}>Send Message</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
-        </TouchableOpacity>
+                <LinearGradient
+                  colors={['rgba(0,0,0,0.05)', 'transparent']}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 100,
+                    zIndex: 1,
+                  }}
+                />
+                
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: spacing.lg,
+                  zIndex: 2,
+                }}>
+                  <Text style={[commonStyles.subtitle, { marginBottom: 0, fontSize: typography.fontSize.xl }]}>
+                    Creator Profile
+                  </Text>
+                  <TouchableOpacity
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: colors.gray[100],
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                    onPress={onClose}
+                  >
+                    <Ionicons name="close" size={20} color={colors.gray[600]} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView>
+                  {renderCreatorPhotos()}
+                  
+                  <View style={{ padding: spacing.lg }}>
+                    <View style={{ 
+                      flexDirection: 'row', 
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: spacing.lg 
+                    }}>
+                      <View>
+                        <Text style={[commonStyles.title, { marginBottom: spacing.xs }]}>{creator.name}</Text>
+                        <Text style={[commonStyles.textSecondary]}>{creator.email}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[commonStyles.button, {
+                          backgroundColor: colors.primary + '10',
+                          paddingVertical: spacing.xs,
+                          paddingHorizontal: spacing.sm,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: spacing.xs,
+                          borderRadius: borderRadius.lg,
+                        }]}
+                        onPress={handleSendMessage}
+                      >
+                        <Ionicons name="chatbubble-outline" size={14} color={colors.primary} />
+                        <Text style={[commonStyles.text, { 
+                          color: colors.primary,
+                          fontSize: typography.fontSize.xs,
+                          fontWeight: '500'
+                        }]}>
+                          Message
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {creator.phone && (
+                      <View style={[commonStyles.row, { marginBottom: spacing.sm }]}>
+                        <Ionicons name="call-outline" size={20} color={colors.gray[600]} />
+                        <Text style={[commonStyles.text, { marginLeft: spacing.sm, color: colors.gray[600] }]}>
+                          {creator.phone}
+                        </Text>
+                      </View>
+                    )}
+
+                    {creator.gender && (
+                      <View style={[commonStyles.row, { marginBottom: spacing.lg }]}>
+                        <Ionicons name="person-outline" size={20} color={colors.gray[600]} />
+                        <Text style={[commonStyles.text, { marginLeft: spacing.sm, color: colors.gray[600] }]}>
+                          {creator.gender.charAt(0).toUpperCase() + creator.gender.slice(1)}
+                        </Text>
+                      </View>
+                    )}
+
+                    {creator.bio && (
+                      <View style={{ marginBottom: spacing.lg }}>
+                        <Text style={[commonStyles.subtitle]}>Bio</Text>
+                        <Text style={[commonStyles.text, { color: colors.gray[600], lineHeight: typography.lineHeight.normal }]}>
+                          {creator.bio}
+                        </Text>
+                      </View>
+                    )}
+
+                    {creator.interests && creator.interests.length > 0 && (
+                      <View>
+                        <Text style={[commonStyles.subtitle]}>Interests</Text>
+                        <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
+                          {creator.interests.map((interest: string, index: number) => (
+                            <Tag key={index} label={interest} isSelected={false} disabled={true} />
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                </ScrollView>
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
+const ParticipantModal: React.FC<ParticipantModalProps> = ({ visible, participant, onClose }) => {
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const [activeSlide, setActiveSlide] = useState(0);
+  const flatListRef = useRef<FlatList>(null);
+  
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [visible]);
+
+  const renderPaginationDots = () => {
+    if (!participant.pictures || participant.pictures.length <= 1) return null;
+
+    return (
+      <View style={{
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'absolute',
+        bottom: spacing.sm,
+        width: '100%',
+      }}>
+        {participant.pictures.map((_, index) => (
+          <View
+            key={index}
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: index === activeSlide ? colors.white : `rgba(255, 255, 255, 0.5)`,
+              marginHorizontal: 4,
+            }}
+          />
+        ))}
+      </View>
+    );
+  };
+
+  const renderParticipantPhotos = () => {
+    if (!participant.pictures || participant.pictures.length === 0) {
+      return (
+        <View style={{
+          width: '100%',
+          aspectRatio: 1,
+          backgroundColor: colors.gray[100],
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}>
+          <Ionicons name="person" size={60} color={colors.gray[400]} />
+        </View>
+      );
+    }
+
+    const imageSize = Dimensions.get('window').width;
+
+    return (
+      <View style={{ width: '100%', aspectRatio: 1 }}>
+        <FlatList
+          ref={flatListRef}
+          data={participant.pictures}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(event) => {
+            const currentIndex = Math.floor(
+              event.nativeEvent.contentOffset.x / imageSize
+            );
+            setActiveSlide(currentIndex);
+          }}
+          renderItem={({ item }) => {
+            const imageUrl = getImageUrl(item.url);
+            const imageSource = imageUrl ? { uri: imageUrl } : undefined;
+            
+            return (
+              <View style={{ width: imageSize, aspectRatio: 1 }}>
+                <Image
+                  source={imageSource || require('../assets/default-avatar.png')}
+                  style={{ width: '100%', height: '100%' }}
+                  defaultSource={require('../assets/default-avatar.png')}
+                />
+              </View>
+            );
+          }}
+          keyExtractor={(item) => item._id}
+        />
+        {renderPaginationDots()}
+      </View>
+    );
+  };
+
+  if (!visible) return null;
+
+  return (
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity 
+        style={{ flex: 1 }}
+        activeOpacity={1}
+        onPress={onClose}
+      >
+        <BlurView intensity={20} style={{ flex: 1 }}>
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.3)',
+            justifyContent: 'flex-end',
+          }}>
+            <TouchableOpacity 
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
+              <Animated.View
+                style={[
+                  {
+                    backgroundColor: colors.white,
+                    borderTopLeftRadius: borderRadius.xl,
+                    borderTopRightRadius: borderRadius.xl,
+                    height: Dimensions.get('window').height * 0.8,
+                    width: '100%',
+                    overflow: 'hidden',
+                    transform: [
+                      {
+                        translateY: slideAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [300, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <LinearGradient
+                  colors={['rgba(0,0,0,0.05)', 'transparent']}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 100,
+                    zIndex: 1,
+                  }}
+                />
+                
+                <View style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: spacing.lg,
+                  zIndex: 2,
+                }}>
+                  <Text style={[commonStyles.subtitle, { marginBottom: 0, fontSize: typography.fontSize.xl }]}>
+                    Participant Profile
+                  </Text>
+                  <TouchableOpacity
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 16,
+                      backgroundColor: colors.gray[100],
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}
+                    onPress={onClose}
+                  >
+                    <Ionicons name="close" size={20} color={colors.gray[600]} />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView>
+                  {renderParticipantPhotos()}
+                  
+                  <View style={{ padding: spacing.lg }}>
+                    <View style={{ marginBottom: spacing.lg }}>
+                      <Text style={[commonStyles.title, { marginBottom: spacing.xs }]}>{participant.name}</Text>
+                      <Text style={[commonStyles.textSecondary]}>{participant.email}</Text>
+                    </View>
+
+                    {participant.phone && (
+                      <View style={[commonStyles.row, { marginBottom: spacing.sm }]}>
+                        <Ionicons name="call-outline" size={20} color={colors.gray[600]} />
+                        <Text style={[commonStyles.text, { marginLeft: spacing.sm, color: colors.gray[600] }]}>
+                          {participant.phone}
+                        </Text>
+                      </View>
+                    )}
+
+                    {participant.gender && (
+                      <View style={[commonStyles.row, { marginBottom: spacing.lg }]}>
+                        <Ionicons name="person-outline" size={20} color={colors.gray[600]} />
+                        <Text style={[commonStyles.text, { marginLeft: spacing.sm, color: colors.gray[600] }]}>
+                          {participant.gender.charAt(0).toUpperCase() + participant.gender.slice(1)}
+                        </Text>
+                      </View>
+                    )}
+
+                    {participant.bio && (
+                      <View style={{ marginBottom: spacing.lg }}>
+                        <Text style={[commonStyles.subtitle]}>Bio</Text>
+                        <Text style={[commonStyles.text, { color: colors.gray[600], lineHeight: typography.lineHeight.normal }]}>
+                          {participant.bio}
+                        </Text>
+                      </View>
+                    )}
+
+                    {participant.interests && participant.interests.length > 0 && (
+                      <View>
+                        <Text style={[commonStyles.subtitle]}>Interests</Text>
+                        <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
+                          {participant.interests.map((interest: string, index: number) => (
+                            <Tag key={index} label={interest} isSelected={false} disabled={true} />
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                </ScrollView>
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
       </TouchableOpacity>
     </Modal>
   );
@@ -265,6 +639,8 @@ export default function EventsScreen() {
   const isMounted = useRef(true);
   const { token, userId } = useAuth();
   const [selectedCreator, setSelectedCreator] = useState<Event['creator'] | null>(null);
+  const [selectedParticipant, setSelectedParticipant] = useState<ParticipantModalProps['participant'] | null>(null);
+  const { showAlert, alertConfig, show, hide } = useAlert();
 
   const fetchEvents = useCallback(async () => {
     const controller = new AbortController();
@@ -281,8 +657,43 @@ export default function EventsScreen() {
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
+      
+      // Fetch participant details for each event
+      const eventsWithParticipantDetails = await Promise.all(
+        data.map(async (event: Event) => {
+          const participantsWithDetails = await Promise.all(
+            event.participants.map(async (participant) => {
+              try {
+                const response = await fetch(`${API_URL}/api/auth/${participant.userId}`, {
+                  headers: {
+                    'Authorization': `Bearer ${token}`
+                  }
+                });
+                
+                if (response.ok) {
+                  const details = await response.json();
+                  return {
+                    ...participant,
+                    name: details.name,
+                    pictures: details.pictures
+                  };
+                }
+              } catch (error) {
+                console.error('Error fetching participant details:', error);
+              }
+              return participant;
+            })
+          );
+          
+          return {
+            ...event,
+            participants: participantsWithDetails
+          };
+        })
+      );
+
       if (isMounted.current) {
-        setEvents(data);
+        setEvents(eventsWithParticipantDetails);
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
@@ -338,26 +749,62 @@ export default function EventsScreen() {
       }
 
       setEvents(prevEvents => prevEvents.filter(event => event._id !== eventId));
-      Alert.alert('Success', 'Event deleted successfully');
+      show({
+        title: 'Success',
+        message: 'Event deleted successfully',
+        buttons: [{ text: 'OK', onPress: hide }]
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-      Alert.alert('Error', errorMessage);
+      show({
+        title: 'Error',
+        message: errorMessage,
+        buttons: [{ text: 'OK', onPress: hide }]
+      });
     }
-  }, [token]);
+  }, [token, show, hide]);
+
+  const handleDeleteEvent = useCallback((eventId: string, eventTitle: string) => {
+    show({
+      title: 'Delete Event',
+      message: `Are you sure you want to delete "${eventTitle}"? This action cannot be undone.`,
+      buttons: [
+        {
+          text: 'Cancel',
+          onPress: hide,
+          style: 'destructive'
+        },
+        {
+          text: 'Delete',
+          onPress: () => {
+            hide();
+            deleteEvent(eventId);
+          }
+        }
+      ]
+    });
+  }, [deleteEvent, show, hide]);
 
   const handleJoinEvent = useCallback(async (event: Event) => {
     if (!userId) {
-      Alert.alert('Error', 'You must be logged in to join events');
+      show({
+        title: 'Error',
+        message: 'You must be logged in to join events',
+        buttons: [{ text: 'OK', onPress: hide }]
+      });
       return;
     }
 
     try {
-      // Check capacity for open events
       if (event.status === 'open') {
         const participants = event.participants || [];
         const approvedParticipants = participants.filter(p => p.status === 'approved').length;
         if (approvedParticipants >= (event.capacity || 0)) {
-          Alert.alert('Error', 'This event has reached its capacity');
+          show({
+            title: 'Error',
+            message: 'This event has reached its capacity',
+            buttons: [{ text: 'OK', onPress: hide }]
+          });
           return;
         }
       }
@@ -375,7 +822,6 @@ export default function EventsScreen() {
         throw new Error(error.message || 'Failed to join event');
       }
 
-      // Update local state
       setEvents(prevEvents => prevEvents.map(e => {
         if (e._id === event._id) {
           const currentParticipants = e.participants || [];
@@ -390,21 +836,30 @@ export default function EventsScreen() {
         return e;
       }));
 
-      Alert.alert(
-        'Success', 
-        event.status === 'open' 
+      show({
+        title: 'Success',
+        message: event.status === 'open' 
           ? 'You have successfully joined the event!' 
-          : 'Your join request has been submitted and is pending approval'
-      );
+          : 'Your join request has been submitted and is pending approval',
+        buttons: [{ text: 'OK', onPress: hide }]
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-      Alert.alert('Error', errorMessage);
+      show({
+        title: 'Error',
+        message: errorMessage,
+        buttons: [{ text: 'OK', onPress: hide }]
+      });
     }
-  }, [token, userId]);
+  }, [token, userId, show, hide]);
 
   const handleLeaveEvent = useCallback(async (eventId: string) => {
     if (!userId) {
-      Alert.alert('Error', 'You must be logged in to leave events');
+      show({
+        title: 'Error',
+        message: 'You must be logged in to leave events',
+        buttons: [{ text: 'OK', onPress: hide }]
+      });
       return;
     }
 
@@ -421,7 +876,6 @@ export default function EventsScreen() {
         throw new Error(error.message || 'Failed to leave event');
       }
 
-      // Update local state
       setEvents(prevEvents => prevEvents.map(e => {
         if (e._id === eventId) {
           const currentParticipants = e.participants || [];
@@ -433,15 +887,55 @@ export default function EventsScreen() {
         return e;
       }));
 
-      Alert.alert('Success', 'You have left the event');
+      show({
+        title: 'Success',
+        message: 'You have left the event',
+        buttons: [{ text: 'OK', onPress: hide }]
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
-      Alert.alert('Error', errorMessage);
+      show({
+        title: 'Error',
+        message: errorMessage,
+        buttons: [{ text: 'OK', onPress: hide }]
+      });
     }
-  }, [token, userId]);
+  }, [token, userId, show, hide]);
+
+  const fetchParticipantDetails = useCallback(async (userId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch participant details');
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error fetching participant details:', error);
+      return null;
+    }
+  }, [token]);
+
+  const handleParticipantPress = useCallback(async (participant: { userId: string; status: string }) => {
+    const details = await fetchParticipantDetails(participant.userId);
+    if (details) {
+      setSelectedParticipant(details);
+      setEvents(prevEvents => prevEvents.map(event => ({
+        ...event,
+        participants: event.participants.map(p => 
+          p.userId === participant.userId ? { ...p, name: details.name } : p
+        )
+      })));
+    }
+  }, [fetchParticipantDetails]);
 
   const renderParticipationButton = useCallback((event: Event) => {
-    // Don't show join/leave buttons for events created by the current user
     if (event.creator.id === userId) {
       return null;
     }
@@ -452,40 +946,96 @@ export default function EventsScreen() {
     if (userParticipation) {
       if (userParticipation.status === 'rejected') {
         return (
-          <View style={[styles.actionButton, styles.rejectedButton]}>
-            <Ionicons name="close-circle" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>Rejected</Text>
+          <View style={[commonStyles.button, { 
+            backgroundColor: colors.danger + '10',
+            paddingVertical: spacing.xs,
+            paddingHorizontal: spacing.sm,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+            borderRadius: borderRadius.lg,
+          }]}>
+            <Ionicons name="close-circle" size={14} color={colors.danger} />
+            <Text style={[commonStyles.text, { 
+              color: colors.danger,
+              fontSize: typography.fontSize.xs,
+              fontWeight: '500'
+            }]}>
+              Rejected
+            </Text>
           </View>
         );
       }
       
       if (userParticipation.status === 'approved') {
         return (
-          <View style={[styles.actionButton, styles.approvedButton]}>
-            <Ionicons name="checkmark-circle" size={20} color="#fff" />
-            <Text style={styles.actionButtonText}>Approved</Text>
+          <View style={[commonStyles.button, { 
+            backgroundColor: colors.success + '10',
+            paddingVertical: spacing.xs,
+            paddingHorizontal: spacing.sm,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+            borderRadius: borderRadius.lg,
+          }]}>
+            <Ionicons name="checkmark-circle" size={14} color={colors.success} />
+            <Text style={[commonStyles.text, { 
+              color: colors.success,
+              fontSize: typography.fontSize.xs,
+              fontWeight: '500'
+            }]}>
+              Approved
+            </Text>
           </View>
         );
       }
 
       return (
         <TouchableOpacity
-          style={[styles.actionButton, styles.leaveButton]}
+          style={[commonStyles.button, { 
+            backgroundColor: colors.warning + '10',
+            paddingVertical: spacing.xs,
+            paddingHorizontal: spacing.sm,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.xs,
+            borderRadius: borderRadius.lg,
+          }]}
           onPress={() => handleLeaveEvent(event._id)}
         >
-          <Ionicons name="exit" size={20} color="#fff" />
-          <Text style={styles.actionButtonText}>Cancel Request</Text>
+          <Ionicons name="exit" size={14} color={colors.warning} />
+          <Text style={[commonStyles.text, { 
+            color: colors.warning,
+            fontSize: typography.fontSize.xs,
+            fontWeight: '500'
+          }]}>
+            Cancel Request
+          </Text>
         </TouchableOpacity>
       );
     }
 
     return (
       <TouchableOpacity
-        style={[styles.actionButton, styles.joinButton]}
+        style={[commonStyles.button, { 
+          backgroundColor: colors.primary + '10',
+          paddingVertical: spacing.xs,
+          paddingHorizontal: spacing.sm,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.xs,
+          borderRadius: borderRadius.lg,
+        }]}
         onPress={() => handleJoinEvent(event)}
       >
-        <Ionicons name="enter" size={20} color="#fff" />
-        <Text style={styles.actionButtonText}>Join Event</Text>
+        <Ionicons name="enter" size={14} color={colors.primary} />
+        <Text style={[commonStyles.text, { 
+          color: colors.primary,
+          fontSize: typography.fontSize.xs,
+          fontWeight: '500'
+        }]}>
+          Join Event
+        </Text>
       </TouchableOpacity>
     );
   }, [handleJoinEvent, handleLeaveEvent, userId]);
@@ -509,222 +1059,403 @@ export default function EventsScreen() {
       });
     };
 
-    const renderTags = () => (
-      <View style={styles.tagsContainer}>
-        {item.tags.map((tag, index) => (
-          <View key={index} style={styles.tag}>
-            <Text style={styles.tagText}>{tag}</Text>
-          </View>
-        ))}
-      </View>
-    );
-
-    const renderRecurringInfo = () => {
-      if (item.type !== 'recurring') return null;
-
-      return (
-        <View style={styles.recurringInfo}>
-          <Text style={styles.recurringText}>
-            Repeats {item.repeatFrequency}ly
-            {item.repeatDays && item.repeatDays.length > 0 && 
-              ` on ${item.repeatDays.join(', ')}`}
-          </Text>
-          {item.endDate && (
-            <Text style={styles.endDateText}>
-              Until {formatDate(item.endDate)}
-            </Text>
-          )}
-        </View>
-      );
-    };
-
-    const renderCreatorThumb = () => {
-      if (item.creator.pictures && item.creator.pictures.length > 0) {
-        return (
-          <Image
-            source={{ uri: `${API_URL}${item.creator.pictures[0].url}` }}
-            style={styles.creatorThumb}
-            defaultSource={require('../assets/default-avatar.png')}
-          />
-        );
-      }
-      return (
-        <View style={[styles.creatorThumb, styles.creatorThumbPlaceholder]}>
-          <Ionicons name="person" size={16} color="#666" />
-        </View>
-      );
-    };
-
-    const renderEventStatus = () => {
+    const renderParticipants = () => {
       const participants = item.participants || [];
-      const approvedParticipants = participants.filter(p => p.status === 'approved').length;
-      const userParticipation = participants.find(p => p.userId === userId);
-      const isFull = approvedParticipants >= (item.capacity || 0);
+      const approvedParticipants = participants.filter(p => p.status === 'approved');
+      
+      if (approvedParticipants.length === 0) return null;
 
       return (
-        <View style={styles.eventStatus}>
-          <View style={styles.statusContainer}>
-            <Text style={styles.statusLabel}>Status:</Text>
-            <View style={[
-              styles.statusBadge,
-              item.status === 'open' ? styles.openStatusBadge : styles.verificationStatusBadge,
-              userParticipation?.status === 'rejected' && styles.rejectedStatusBadge,
-              userParticipation?.status === 'approved' && styles.approvedStatusBadge
-            ]}>
-              <Text style={[
-                styles.statusBadgeText,
-                userParticipation?.status === 'rejected' && styles.rejectedStatusText,
-                userParticipation?.status === 'approved' && styles.approvedStatusText
-              ]}>
-                {userParticipation?.status === 'rejected' 
-                  ? 'Rejected'
-                  : userParticipation?.status === 'approved'
-                  ? 'Approved'
-                  : item.status === 'open' ? 'Open' : 'Verification Required'}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.capacityContainer}>
-            <Text style={styles.capacityLabel}>Capacity:</Text>
-            <Text style={[
-              styles.capacityText,
-              isFull ? styles.capacityFull : styles.capacityAvailable
-            ]}>
-              {approvedParticipants}/{item.capacity}
+        <View style={{ marginBottom: spacing.lg }}>
+          <View style={[commonStyles.row, { justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }]}>
+            <Text style={[commonStyles.subtitle]}>Participants</Text>
+            <Text style={[commonStyles.textSecondary]}>
+              {approvedParticipants.length}/{item.capacity}
             </Text>
           </View>
-          {userParticipation?.status === 'rejected' && (
-            <Text style={styles.rejectionNote}>
-              Your request to join this event was rejected
-            </Text>
-          )}
-          {userParticipation?.status === 'approved' && (
-            <Text style={styles.approvalNote}>
-              You have been approved to join this event
-            </Text>
-          )}
+          
+          <View style={{ gap: spacing.sm }}>
+            {approvedParticipants.map((participant, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[commonStyles.row, { 
+                  backgroundColor: colors.gray[100],
+                  padding: spacing.sm,
+                  borderRadius: borderRadius.lg,
+                  alignItems: 'center'
+                }]}
+                onPress={() => handleParticipantPress(participant)}
+              >
+                <View style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: colors.gray[100],
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: spacing.sm,
+                  overflow: 'hidden',
+                }}>
+                  {participant.pictures?.[0]?.url ? (
+                    <Image
+                      source={{ uri: getImageUrl(participant.pictures[0].url) || undefined }}
+                      style={{ width: '100%', height: '100%' }}
+                      defaultSource={require('../assets/default-avatar.png')}
+                    />
+                  ) : (
+                    <Ionicons name="person" size={16} color={colors.gray[400]} />
+                  )}
+                </View>
+                <Text style={[commonStyles.text, { flex: 1 }]}>
+                  {participant.userId === userId ? 'You' : participant.name || 'Anonymous'}
+                </Text>
+                {participant.userId === item.creator.id && (
+                  <View style={{
+                    backgroundColor: colors.primary + '10',
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: spacing.xs,
+                    borderRadius: borderRadius.lg,
+                  }}>
+                    <Text style={[commonStyles.text, { 
+                      color: colors.primary,
+                      fontSize: typography.fontSize.xs,
+                      fontWeight: '500'
+                    }]}>
+                      Creator
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       );
     };
 
     return (
-      <View style={styles.eventCard}>
-        <Text style={styles.eventTitle}>{item.title}</Text>
-        <TouchableOpacity 
-          style={styles.creatorInfo}
-          onPress={() => setSelectedCreator(item.creator)}
-        >
-          <View style={styles.creatorHeader}>
-            {renderCreatorThumb()}
-            <Text style={styles.creatorText}>Created by {item.creator.name}</Text>
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.eventDescription}>{item.description}</Text>
-        
-        <View style={styles.dateTimeInfo}>
-          <Text style={styles.dateTimeText}>
-            {formatDate(item.startDate)}
-          </Text>
-          <Text style={styles.dateTimeText}>
-            {formatTime(item.startTime)} - {formatTime(item.endTime)}
-          </Text>
-        </View>
-
-        {renderRecurringInfo()}
-
-        {renderEventStatus()}
-
-        <View style={styles.locationsContainer}>
-          <Text style={styles.locationsTitle}>Locations:</Text>
-          {item.locations.map((location, index) => (
-            <View key={index} style={styles.locationItem}>
-              <Text style={styles.locationName}>
-                📍 {location.name}
-              </Text>
-              <View style={styles.mapContainer}>
-                <MapView
-                  style={styles.map}
-                  initialRegion={{
-                    latitude: location.latitude,
-                    longitude: location.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                >
-                  <Marker
-                    coordinate={{
-                      latitude: location.latitude,
-                      longitude: location.longitude,
-                    }}
-                    title={location.name}
+      <View style={{ 
+        backgroundColor: colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.gray[200],
+      }}>
+        <View style={{ padding: spacing.sm }}>
+          {/* Header Section */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <TouchableOpacity 
+              style={[commonStyles.row, { alignItems: 'center', marginBottom: spacing.sm }]}
+              onPress={() => setSelectedCreator(item.creator)}
+            >
+              <View style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: colors.gray[100],
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: spacing.sm,
+                overflow: 'hidden',
+              }}>
+                {item.creator.pictures?.[0]?.url ? (
+                  <Image
+                    source={{ uri: getImageUrl(item.creator.pictures[0].url) || undefined }}
+                    style={{ width: '100%', height: '100%' }}
+                    defaultSource={require('../assets/default-avatar.png')}
                   />
-                </MapView>
+                ) : (
+                  <Ionicons name="person" size={16} color={colors.gray[400]} />
+                )}
+              </View>
+              <Text style={[commonStyles.text, { color: colors.gray[600] }]}>
+                Created by {item.creator.name}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={[commonStyles.subtitle, { 
+              fontSize: typography.fontSize.xl,
+              marginBottom: spacing.xs,
+              color: colors.gray[900]
+            }]}>
+              {item.title}
+            </Text>
+            <Text style={[commonStyles.text, { 
+              color: colors.gray[600],
+              marginBottom: spacing.base,
+              lineHeight: typography.lineHeight.relaxed
+            }]}>
+              {item.description}
+            </Text>
+
+            {/* Tags */}
+            {item.tags && item.tags.length > 0 && (
+              <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.xs }]}>
+                {item.tags.map((tag, index) => (
+                  <Tag key={index} label={tag} isSelected={false} disabled />
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Date & Time */}
+          <View style={{
+            backgroundColor: colors.gray[100],
+            padding: spacing.base,
+            borderRadius: borderRadius.lg,
+            marginBottom: spacing.lg,
+          }}>
+            <View style={[commonStyles.row, { marginBottom: spacing.xs }]}>
+              <Ionicons name="calendar-outline" size={20} color={colors.gray[600]} style={{ marginRight: spacing.xs }} />
+              <Text style={[commonStyles.text, { color: colors.gray[900], fontWeight: '500' }]}>
+                {formatDate(item.startDate)}
+              </Text>
+            </View>
+            <View style={commonStyles.row}>
+              <Ionicons name="time-outline" size={20} color={colors.gray[600]} style={{ marginRight: spacing.xs }} />
+              <Text style={[commonStyles.text, { color: colors.gray[600] }]}>
+                {formatTime(item.startTime)} - {formatTime(item.endTime)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Recurring Info */}
+          {item.type === 'recurring' && (
+            <View style={{
+              backgroundColor: colors.primary + '10',
+              padding: spacing.base,
+              borderRadius: borderRadius.lg,
+              marginBottom: spacing.lg,
+            }}>
+              <Text style={[commonStyles.text, { color: colors.primary, fontWeight: '500' }]}>
+                Repeats {item.repeatFrequency}ly
+                {item.repeatDays && item.repeatDays.length > 0 && 
+                  ` on ${item.repeatDays.join(', ')}`}
+              </Text>
+              {item.endDate && (
+                <Text style={[commonStyles.textSecondary, { 
+                  fontSize: typography.fontSize.sm,
+                  marginTop: spacing.xs,
+                  color: colors.primary + '99'
+                }]}>
+                  Until {formatDate(item.endDate)}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* Event Status */}
+          <View style={{
+            backgroundColor: colors.gray[100],
+            padding: spacing.base,
+            borderRadius: borderRadius.lg,
+            marginBottom: spacing.lg,
+          }}>
+            <View style={[commonStyles.row, { justifyContent: 'space-between', marginBottom: spacing.xs }]}>
+              <View style={[commonStyles.row, { alignItems: 'center' }]}>
+                <Ionicons name="people-outline" size={20} color={colors.gray[600]} style={{ marginRight: spacing.xs }} />
+                <Text style={[commonStyles.text, { color: colors.gray[600] }]}>
+                  {item.participants?.filter(p => p.status === 'approved').length || 0} / {item.capacity} participants
+                </Text>
+              </View>
+              <View style={[commonStyles.row, { alignItems: 'center' }]}>
+                <Ionicons name="shield-outline" size={20} color={colors.gray[600]} style={{ marginRight: spacing.xs }} />
+                <Text style={[commonStyles.text, { 
+                  color: item.status === 'open' ? colors.success : colors.warning,
+                  fontWeight: '500'
+                }]}>
+                  {item.status === 'open' ? 'Open' : 'Verification Required'}
+                </Text>
               </View>
             </View>
-          ))}
-        </View>
+          </View>
 
-        <Text style={styles.createdAt}>
-          Created {new Date(item.createdAt).toLocaleDateString()}
-        </Text>
+          {/* Participants List */}
+          {(item.status === 'open' || item.participants?.some(p => p.userId === userId && p.status === 'approved')) && renderParticipants()}
 
-        <View style={styles.actionButtons}>
-          {renderParticipationButton(item)}
-          {item.creator.id === userId && (
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => deleteEvent(item._id)}
-            >
-              <Text style={styles.deleteButtonText}>Delete</Text>
-            </TouchableOpacity>
-          )}
+          {/* Locations */}
+          <View style={{ marginBottom: spacing.lg }}>
+            <Text style={[commonStyles.subtitle, { marginBottom: spacing.base }]}>
+              Locations
+            </Text>
+            {item.locations.map((location, index) => (
+              <View key={index} style={{ marginBottom: index < item.locations.length - 1 ? spacing.base : 0 }}>
+                <Text style={[commonStyles.text, { 
+                  fontWeight: '500',
+                  marginBottom: spacing.xs,
+                  color: colors.gray[900]
+                }]}>
+                  📍 {location.name}
+                </Text>
+                <View style={{ 
+                  height: 120,
+                  borderRadius: borderRadius.lg,
+                  overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: colors.gray[200],
+                }}>
+                  <MapView
+                    style={{ width: '100%', height: '100%' }}
+                    initialRegion={{
+                      latitude: location.latitude,
+                      longitude: location.longitude,
+                      latitudeDelta: 0.01,
+                      longitudeDelta: 0.01,
+                    }}
+                    scrollEnabled={false}
+                    zoomEnabled={false}
+                  >
+                    <Marker
+                      coordinate={{
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                      }}
+                      title={location.name}
+                    />
+                  </MapView>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {/* Footer */}
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.gray[100], paddingTop: spacing.lg }}>
+            <Text style={[commonStyles.textTertiary, { marginBottom: spacing.base }]}>
+              Created {new Date(item.createdAt).toLocaleDateString()}
+            </Text>
+
+            <View style={[commonStyles.row, { justifyContent: 'flex-end', gap: spacing.sm }]}>
+              {renderParticipationButton(item)}
+              {item.creator.id === userId && (
+                <TouchableOpacity
+                  style={[commonStyles.button, { 
+                    backgroundColor: colors.white,
+                    borderWidth: 1,
+                    borderColor: colors.danger,
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.lg,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: spacing.xs,
+                  }]}
+                  onPress={() => handleDeleteEvent(item._id, item.title)}
+                >
+                  <Ionicons name="trash" size={16} color={colors.danger} />
+                  <Text style={[commonStyles.text, { 
+                    color: colors.danger,
+                    fontSize: typography.fontSize.sm,
+                    fontWeight: '500'
+                  }]}>
+                    Delete
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
         </View>
       </View>
     );
-  }, [userId, deleteEvent, renderParticipationButton, setSelectedCreator]);
+  }, [userId, handleDeleteEvent, renderParticipationButton, setSelectedCreator, setSelectedParticipant, handleParticipantPress]);
 
   const keyExtractor = useCallback((item: Event) => item._id, []);
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
+      <View style={commonStyles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Events</Text>
-      <FlatList
-        ref={flatListRef}
-        data={events}
-        renderItem={renderEvent}
-        keyExtractor={keyExtractor}
-        contentContainerStyle={styles.listContainer}
-        removeClippedSubviews={false}
-        maxToRenderPerBatch={5}
-        windowSize={3}
-        initialNumToRender={5}
-        onEndReachedThreshold={0.5}
-        maintainVisibleContentPosition={{
-          minIndexForVisible: 0,
-        }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#0000ff']}
-            tintColor="#0000ff"
-          />
-        }
-      />
+    <View style={[commonStyles.container, { backgroundColor: colors.white }]}>
+      {alertConfig && (
+        <CustomAlert
+          visible={showAlert}
+          title={alertConfig.title}
+          message={alertConfig.message}
+          buttons={alertConfig.buttons}
+        />
+      )}
+
+      {/* Header */}
+      <View style={{
+        backgroundColor: colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.gray[200],
+        paddingHorizontal: spacing.sm,
+        paddingTop: spacing.xl,
+        paddingBottom: spacing.lg,
+      }}>
+        <Text style={[commonStyles.title, { color: colors.gray[900], marginBottom: 0 }]}>
+          Explore Events
+        </Text>
+      </View>
+      
+      {/* Content */}
+      {events.length === 0 ? (
+        <View style={{ 
+          flex: 1, 
+          justifyContent: 'center', 
+          alignItems: 'center',
+          paddingHorizontal: spacing.base,
+          backgroundColor: colors.white,
+        }}>
+          <View style={{
+            width: 80,
+            height: 80,
+            borderRadius: 40,
+            backgroundColor: colors.gray[100],
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginBottom: spacing.lg,
+          }}>
+            <Ionicons name="compass-outline" size={40} color={colors.gray[400]} />
+          </View>
+          <Text style={[commonStyles.subtitle, { 
+            color: colors.gray[900],
+            marginBottom: spacing.sm,
+            textAlign: 'center'
+          }]}>
+            No Events Found
+          </Text>
+          <Text style={[commonStyles.text, { 
+            color: colors.gray[600],
+            marginBottom: spacing.xl,
+            textAlign: 'center',
+            lineHeight: typography.lineHeight.relaxed
+          }]}>
+            There are no events available at the moment. Check back later!
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={events}
+          renderItem={renderEvent}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={{ 
+            backgroundColor: colors.white,
+          }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        />
+      )}
+      
       <CreatorModal
         visible={!!selectedCreator}
         creator={selectedCreator!}
         onClose={() => setSelectedCreator(null)}
+      />
+
+      <ParticipantModal
+        visible={!!selectedParticipant}
+        participant={selectedParticipant!}
+        onClose={() => setSelectedParticipant(null)}
       />
     </View>
   );
@@ -808,7 +1539,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 12,
-    color: '#0288d1',
+    color: '#0288D1',
     fontWeight: '500',
   },
   locationsContainer: {
