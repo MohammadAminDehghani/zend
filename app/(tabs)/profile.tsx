@@ -103,52 +103,35 @@ export default function ProfileScreen() {
 
   const handleSave = async () => {
     if (!validateProfile()) return;
-    show({
-      title: 'Save Changes',
-      message: 'Are you sure you want to save these changes?',
-      buttons: [
-        {
-          text: 'Cancel',
-          onPress: hide,
-          style: 'destructive'
-        },
-        {
-          text: 'Save',
-          onPress: async () => {
-            try {
-              setIsSaving(true);
-              const config = {
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                }
-              };
-
-              const response = await axios.patch(`${API_URL}/api/auth/profile`, {
-                name: tempProfile?.name,
-                email: tempProfile?.email,
-                phone: tempProfile?.phone,
-                gender: tempProfile?.gender,
-                interests: tempProfile?.interests,
-                bio: tempProfile?.bio
-              }, config);
-
-              setProfile(response.data);
-              setTempProfile(null);
-              setIsEditing(false);
-              hide();
-              Alert.alert('Success', 'Profile saved successfully');
-            } catch (error: any) {
-              const errorMessage = error.response?.data?.message || 'Failed to save profile';
-              Alert.alert('Error', errorMessage);
-              console.error('Error saving profile:', error);
-            } finally {
-              setIsSaving(false);
-            }
-          }
+    
+    try {
+      setIsSaving(true);
+      const config = {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      ]
-    });
+      };
+
+      const response = await axios.patch(`${API_URL}/api/auth/profile`, {
+        name: tempProfile?.name,
+        email: tempProfile?.email,
+        phone: tempProfile?.phone,
+        gender: tempProfile?.gender,
+        interests: tempProfile?.interests,
+        bio: tempProfile?.bio
+      }, config);
+
+      setProfile(response.data);
+      setTempProfile(null);
+      setIsEditing(false);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to save profile';
+      Alert.alert('Error', errorMessage);
+      console.error('Error saving profile:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleLogout = () => {
@@ -303,6 +286,51 @@ export default function ProfileScreen() {
           message={alertConfig.message}
           buttons={alertConfig.buttons}
         />
+      )}
+
+      {isEditing && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1000,
+          backgroundColor: colors.white,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.gray[200],
+          padding: spacing.sm,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          gap: spacing.sm,
+        }}>
+          <TouchableOpacity 
+            style={[commonStyles.button, { 
+              backgroundColor: colors.gray[100],
+              flex: 1,
+              paddingVertical: spacing.xs,
+              paddingHorizontal: spacing.sm,
+            }]}
+            onPress={handleCancel}
+          >
+            <Text style={[commonStyles.text, { color: colors.gray[700], fontSize: typography.fontSize.sm }]}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[commonStyles.button, { 
+              backgroundColor: colors.primary,
+              flex: 1,
+              paddingVertical: spacing.xs,
+              paddingHorizontal: spacing.sm,
+            }]}
+            onPress={handleSave}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <Text style={[commonStyles.text, { color: colors.white, fontSize: typography.fontSize.sm }]}>Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       )}
 
       <ScrollView style={[commonStyles.container, { backgroundColor: colors.white }]}>
