@@ -779,7 +779,7 @@ export default function ManageScreen() {
         borderBottomWidth: 1,
         borderBottomColor: colors.gray[200],
       }]}>
-        <View style={{ padding: spacing.lg }}>
+        <View style={{ padding: spacing.base }}>
           {/* Header Section */}
           <View style={{ marginBottom: spacing.lg }}>
             <Text style={[commonStyles.subtitle, { 
@@ -991,7 +991,7 @@ export default function ManageScreen() {
         backgroundColor: colors.white,
         borderBottomWidth: 1,
         borderBottomColor: colors.gray[200],
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: spacing.base,
         paddingTop: spacing.xl,
         paddingBottom: spacing.lg,
       }}>

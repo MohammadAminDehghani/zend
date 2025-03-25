@@ -14,6 +14,7 @@ import { COMMON_INTERESTS } from '../constants/interests';
 import Tag from '../components/Tag';
 import CustomAlert from '../components/CustomAlert';
 import { useAlert } from '../utils/alert';
+import { FormInput } from '../components/FormInput';
 
 interface UserProfile {
   id?: string;
@@ -336,7 +337,7 @@ export default function ProfileScreen() {
       <ScrollView style={[commonStyles.container, { backgroundColor: colors.white }]}>
         {/* Header Section */}
         <View style={{
-          padding: spacing.lg,
+          padding: spacing.base,
           paddingTop: spacing.xl,
           borderBottomWidth: 1,
           borderBottomColor: colors.gray[200],
@@ -483,49 +484,36 @@ export default function ProfileScreen() {
               <View>
                 <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>Basic Information</Text>
                 <View style={{ gap: spacing.base }}>
-                  <View>
-                    <Text style={[commonStyles.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>Name<Text style={{ color: colors.danger }}>*</Text></Text>
-                    <TextInput
-                      style={[
-                        commonStyles.input, 
-                        { borderColor: colors.gray[200] },
-                        !tempProfile?.name && isEditing && { borderColor: colors.danger }
-                      ]}
-                      value={isEditing ? tempProfile?.name : profile.name}
-                      onChangeText={(text) => setTempProfile(prev => prev ? { ...prev, name: text } : null)}
-                      editable={isEditing}
-                      placeholder="Enter your name"
-                    />
-                  </View>
+                  <FormInput
+                    label="Name"
+                    required
+                    value={isEditing ? tempProfile?.name || '' : profile.name}
+                    onChangeText={(text) => setTempProfile(prev => prev ? { ...prev, name: text } : null)}
+                    editable={isEditing}
+                    placeholder="Enter your name"
+                    error={!tempProfile?.name && isEditing ? 'Name is required' : undefined}
+                  />
 
-                  <View>
-                    <Text style={[commonStyles.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>Email<Text style={{ color: colors.danger }}>*</Text></Text>
-                    <TextInput
-                      style={[
-                        commonStyles.input, 
-                        { borderColor: colors.gray[200] },
-                        !tempProfile?.email && isEditing && { borderColor: colors.danger }
-                      ]}
-                      value={isEditing ? tempProfile?.email : profile.email}
-                      onChangeText={(text) => setTempProfile(prev => prev ? { ...prev, email: text } : null)}
-                      keyboardType="email-address"
-                      editable={isEditing}
-                      placeholder="Enter your email"
-                      autoCapitalize="none"
-                    />
-                  </View>
+                  <FormInput
+                    label="Email"
+                    required
+                    value={isEditing ? tempProfile?.email || '' : profile.email}
+                    onChangeText={(text) => setTempProfile(prev => prev ? { ...prev, email: text } : null)}
+                    keyboardType="email-address"
+                    editable={isEditing}
+                    placeholder="Enter your email"
+                    autoCapitalize="none"
+                    error={!tempProfile?.email && isEditing ? 'Email is required' : undefined}
+                  />
 
-                  <View>
-                    <Text style={[commonStyles.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>Phone</Text>
-                    <TextInput
-                      style={[commonStyles.input, { borderColor: colors.gray[200] }]}
-                      value={isEditing ? tempProfile?.phone : profile.phone}
-                      onChangeText={(text) => setTempProfile(prev => prev ? { ...prev, phone: text } : null)}
-                      keyboardType="phone-pad"
-                      editable={isEditing}
-                      placeholder="Enter your phone number"
-                    />
-                  </View>
+                  <FormInput
+                    label="Phone"
+                    value={isEditing ? tempProfile?.phone || '' : profile.phone}
+                    onChangeText={(text) => setTempProfile(prev => prev ? { ...prev, phone: text } : null)}
+                    keyboardType="phone-pad"
+                    editable={isEditing}
+                    placeholder="Enter your phone number"
+                  />
                 </View>
               </View>
 
@@ -572,15 +560,15 @@ export default function ProfileScreen() {
               {/* Bio */}
               <View>
                 <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>About Me</Text>
-                <TextInput
-                  style={[commonStyles.input, commonStyles.textArea, { borderColor: colors.gray[200] }]}
-                  value={isEditing ? tempProfile?.bio : profile.bio}
+                <FormInput
+                  label=""
+                  value={isEditing ? tempProfile?.bio || '' : profile.bio}
                   onChangeText={(text) => setTempProfile(prev => prev ? { ...prev, bio: text } : null)}
                   multiline
-                  maxLength={500}
+                  numberOfLines={4}
                   editable={isEditing}
                   placeholder="Tell us about yourself..."
-                  textAlignVertical="top"
+                  maxLength={500}
                 />
                 <Text style={[commonStyles.textSecondary, { textAlign: 'right', marginTop: spacing.xs }]}>
                   {(isEditing ? tempProfile?.bio : profile.bio)?.length || 0}/500

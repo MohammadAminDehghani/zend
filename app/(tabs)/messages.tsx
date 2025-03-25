@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAuth } from '../context/auth';
-import { API_URL } from '../config/api';
+import { API_URL, getImageUrl } from '../config/api';
 import { ChatPreview } from '../types/message';
 import { Ionicons } from '@expo/vector-icons';
+import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
 
 export default function MessagesScreen() {
   const [chats, setChats] = useState<ChatPreview[]>([]);
@@ -85,13 +86,21 @@ export default function MessagesScreen() {
       style={styles.chatItem}
       onPress={() => handleChatPress(item)}
     >
-      <Image
-        source={{ uri: item.type === 'one-to-one' 
-          ? item.participants?.[0]?.pictures[0]?.url 
-          : 'https://via.placeholder.com/50' // Group chat placeholder
-        }}
-        style={styles.avatar}
-      />
+      {item.type === 'one-to-one' ? (
+        <Image
+          source={{ 
+            uri: item.participants?.[0]?.pictures?.[0]?.url 
+              ? getImageUrl(item.participants[0].pictures[0].url)
+              : undefined 
+          }}
+          defaultSource={require('../assets/default-avatar.png')}
+          style={styles.avatar}
+        />
+      ) : (
+        <View style={[styles.avatar, styles.groupAvatar]}>
+          <Ionicons name="people" size={24} color={colors.gray[400]} />
+        </View>
+      )}
       <View style={styles.chatInfo}>
         <View style={styles.chatHeader}>
           <Text style={styles.chatName}>{item.name}</Text>
@@ -150,7 +159,7 @@ export default function MessagesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
   },
   loadingContainer: {
     flex: 1,
@@ -161,45 +170,52 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.xl,
   },
   emptyText: {
-    fontSize: 16,
-    color: '#666',
-    marginTop: 12,
+    fontSize: typography.fontSize.base,
+    color: colors.gray[600],
+    marginTop: spacing.sm,
   },
   listContent: {
-    padding: 16,
+    padding: spacing.base,
   },
   chatItem: {
     flexDirection: 'row',
-    padding: 12,
+    padding: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
+    borderBottomColor: colors.gray[200],
   },
   avatar: {
     width: 50,
     height: 50,
     borderRadius: 25,
+    backgroundColor: colors.gray[100],
+  },
+  groupAvatar: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.gray[200],
   },
   chatInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: spacing.base,
   },
   chatHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   chatName: {
-    fontSize: 16,
+    fontSize: typography.fontSize.base,
     fontWeight: '600',
-    color: '#333',
+    color: colors.gray[900],
   },
   timeText: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[600],
   },
   messageContainer: {
     flexDirection: 'row',
@@ -207,22 +223,22 @@ const styles = StyleSheet.create({
   },
   lastMessage: {
     flex: 1,
-    fontSize: 14,
-    color: '#666',
-    marginRight: 8,
+    fontSize: typography.fontSize.sm,
+    color: colors.gray[600],
+    marginRight: spacing.sm,
   },
   unreadBadge: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.full,
     minWidth: 24,
     height: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: spacing.xs,
   },
   unreadCount: {
-    color: '#FFF',
-    fontSize: 12,
+    color: colors.white,
+    fontSize: typography.fontSize.xs,
     fontWeight: '600',
   },
 }); 

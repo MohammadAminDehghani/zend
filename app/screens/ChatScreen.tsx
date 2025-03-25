@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../context/auth';
@@ -18,6 +19,7 @@ import { API_URL } from '../config/api';
 import SocketService from '../services/socket';
 import { Ionicons } from '@expo/vector-icons';
 import { Message } from '../types/message';
+import { colors, spacing, commonStyles } from '../theme';
 
 export default function ChatScreen() {
   const { recipientId, recipientName, recipientPicture, chatType } = useLocalSearchParams();
@@ -28,6 +30,9 @@ export default function ChatScreen() {
   const { user, token } = useAuth();
   const router = useRouter();
   const socketService = SocketService.getInstance();
+
+  // Add new ref for keyboard
+  const keyboardHeight = useRef(0);
 
   useEffect(() => {
     if (!user || !user.id) {
@@ -100,6 +105,36 @@ export default function ChatScreen() {
       socketService.markAsRead(messageIds, user.id);
     }
   }, [messages, user]);
+
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        keyboardHeight.current = e.endCoordinates.height;
+      }
+    );
+
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        keyboardHeight.current = 0;
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, []);
+
+  // Add effect to scroll to bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages]);
 
   const fetchMessages = async () => {
     try {
@@ -178,21 +213,6 @@ export default function ChatScreen() {
     }
   };
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.push('/(tabs)/messages')}
-      >
-        <Ionicons name="arrow-back" size={24} color="#333" />
-      </TouchableOpacity>
-      <View style={styles.headerInfo}>
-        <Text style={styles.headerName}>{recipientName}</Text>
-        <Text style={styles.headerStatus}>Offline</Text>
-      </View>
-    </View>
-  );
-
   const renderMessage = ({ item, index }: { item: Message; index: number }) => {
     const currentDate = new Date(item.createdAt).toDateString();
     const prevMessage = messages[index - 1];
@@ -216,15 +236,55 @@ export default function ChatScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      {renderHeader()}
+      {/* Header */}
+      <View style={{
+        backgroundColor: colors.white,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.gray[200],
+        paddingHorizontal: spacing.base,
+        paddingTop: spacing.xl,
+        paddingBottom: spacing.lg,
+      }}>
+        <View style={[commonStyles.row, { justifyContent: 'space-between', alignItems: 'center' }]}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.push('/(tabs)/messages')}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.gray[900]} />
+          </TouchableOpacity>
+          <View style={styles.headerInfo}>
+            <Text style={[commonStyles.title, { 
+              color: colors.gray[900], 
+              marginBottom: 0,
+              fontSize: 16,
+              fontWeight: '600'
+            }]}>
+              {recipientName}
+            </Text>
+            <Text style={[commonStyles.textSecondary, { fontSize: 12 }]}>Offline</Text>
+          </View>
+        </View>
+      </View>
       
       <FlatList
         ref={flatListRef}
         data={messages}
         renderItem={renderMessage}
         keyExtractor={(item) => item._id}
-        contentContainerStyle={styles.messagesList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        contentContainerStyle={[
+          styles.messagesList,
+          { paddingBottom: keyboardHeight.current + 80 }
+        ]}
+        onContentSizeChange={() => {
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }}
+        onLayout={() => {
+          setTimeout(() => {
+            flatListRef.current?.scrollToEnd({ animated: true });
+          }, 100);
+        }}
       />
 
       <View style={styles.inputContainer}>
@@ -243,7 +303,7 @@ export default function ChatScreen() {
           <Ionicons
             name="send"
             size={24}
-            color={newMessage.trim() ? '#007AFF' : '#999'}
+            color={newMessage.trim() ? colors.primary : colors.gray[400]}
           />
         </TouchableOpacity>
       </View>
@@ -254,47 +314,36 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e1e1',
+    backgroundColor: colors.white,
   },
   backButton: {
-    marginRight: 16,
+    padding: spacing.xs,
   },
   headerInfo: {
     flex: 1,
-  },
-  headerName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  headerStatus: {
-    fontSize: 14,
-    color: '#666',
+    marginLeft: spacing.base,
   },
   messagesList: {
-    padding: 16,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
+    flexGrow: 1,
   },
   inputContainer: {
     flexDirection: 'row',
-    padding: 16,
+    paddingHorizontal: 2,
+    paddingVertical: 4,
     borderTopWidth: 1,
-    borderTopColor: '#e1e1e1',
+    borderTopColor: colors.gray[200],
     alignItems: 'flex-end',
+    backgroundColor: colors.white,
   },
   input: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.gray[100],
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 4,
     maxHeight: 100,
     fontSize: 16,
   },
