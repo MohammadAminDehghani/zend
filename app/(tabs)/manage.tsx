@@ -921,8 +921,8 @@ export default function ManageScreen() {
                 }]}
                 onPress={() => {
                   router.push({
-                    pathname: '/(tabs)/add',
-                    params: { eventId: item._id }
+                    pathname: '/events/edit/[id]',
+                    params: { id: item._id }
                   });
                 }}
               >

@@ -1,8 +1,12 @@
 import React from 'react';
-import { EventForm } from '../components/EventForm';
-import { useEventForm } from '../hooks/useEventForm';
+import { useLocalSearchParams } from 'expo-router';
+import { EventForm } from '../../components/EventForm';
+import { useEventForm } from '../../hooks/useEventForm';
+import { View, ActivityIndicator } from 'react-native';
+import { colors, commonStyles } from '../../theme';
 
-export default function AddEventScreen() {
+export default function EditEventScreen() {
+  const { id } = useLocalSearchParams();
   const {
     formData,
     errors,
@@ -19,7 +23,15 @@ export default function AddEventScreen() {
     handleTagToggle,
     handleCapacityChange,
     handleAccessControlChange,
-  } = useEventForm();
+  } = useEventForm(id as string);
+
+  if (loading) {
+    return (
+      <View style={commonStyles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <EventForm
@@ -38,6 +50,7 @@ export default function AddEventScreen() {
       onTagToggle={handleTagToggle}
       onCapacityChange={handleCapacityChange}
       onAccessControlChange={handleAccessControlChange}
+      isEditing={true}
     />
   );
 } 
