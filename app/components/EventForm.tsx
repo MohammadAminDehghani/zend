@@ -9,7 +9,9 @@ import { FormInput } from './FormInput';
 import { LocationPicker } from './LocationPicker';
 import { DateTimePickerField } from './DateTimePickerField';
 import { CapacitySelector } from './CapacitySelector';
-import { EventForm as EventFormType, Location } from './../hooks/useEventForm';
+import { EventForm as EventFormType, EventLocation } from '../hooks/useEventForm';
+import * as Location from 'expo-location';
+import CustomAlert from './CustomAlert';
 
 // Common tags for events
 const COMMON_TAGS = [
@@ -35,13 +37,36 @@ const COMMON_TAGS = [
     onInputChange: (field: keyof EventFormType, value: string) => void;
     onDateChange: (date: Date) => void;
     onTimeChange: (time: Date) => void;
-    onLocationChange: (locations: Location[]) => void;
+    onLocationChange: (locations: EventLocation[]) => void;
     onTypeChange: (type: 'one-time' | 'recurring') => void;
     onRecurringChange: (frequency: 'daily' | 'weekly' | 'monthly', days: string[]) => void;
     onTagToggle: (tag: string) => void;
     onCapacityChange: (capacity: number) => void;
     onAccessControlChange: (access: 'public' | 'private') => void;
+    handleFocus: (field: keyof EventFormType) => void;
+    handleBlur: (field: keyof EventFormType) => void;
+    focusedFields: Set<keyof EventFormType>;
+    hasSubmitted: boolean;
     isEditing?: boolean;
+    showAlert: boolean;
+    alertConfig: { 
+      title: string; 
+      message: string; 
+      buttons: { text: string; onPress: () => void; style?: 'default' | 'destructive' }[] 
+    } | null;
+    setShowAlert: React.Dispatch<React.SetStateAction<boolean>>;
+    setFormData: React.Dispatch<React.SetStateAction<EventFormType>>;
+    setErrors: React.Dispatch<React.SetStateAction<{
+      title?: string;
+      description?: string;
+      location?: string;
+      date?: string;
+      time?: string;
+    }>>;
+    setFocusedFields: React.Dispatch<React.SetStateAction<Set<keyof EventFormType>>>;
+    setHasSubmitted: React.Dispatch<React.SetStateAction<boolean>>;
+    onEndDateChange: (date: Date) => void;
+    onStatusChange: (status: 'public' | 'private') => void;
   }
   
   export const EventForm: React.FC<EventFormProps> = ({
@@ -60,90 +85,46 @@ const COMMON_TAGS = [
     onTagToggle,
     onCapacityChange,
     onAccessControlChange,
-    isEditing = false
+    handleFocus,
+    handleBlur,
+    focusedFields,
+    hasSubmitted,
+    isEditing = false,
+    showAlert,
+    alertConfig,
+    setShowAlert,
+    setFormData,
+    setErrors,
+    setFocusedFields,
+    setHasSubmitted,
+    onEndDateChange,
+    onStatusChange
   }) => {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showEndDatePicker, setShowEndDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState<'start' | 'end' | null>(null);
-    const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
-    const [locationName, setLocationName] = useState('');
-    const [draggingLocationIndex, setDraggingLocationIndex] = useState<number | null>(null);
-    const pan = useRef(new Animated.ValueXY()).current;
     const scrollViewRef = useRef<ScrollView>(null);
   
-    const handleMapPress = useCallback((event: MapPressEvent) => {
-      const { coordinate } = event.nativeEvent;
-      setCurrentLocation({
-        name: '',
-        latitude: coordinate.latitude,
-        longitude: coordinate.longitude
-      });
-    }, []);
-  
-    const addLocation = () => {
-      if (currentLocation && locationName) {
-        onLocationChange([...formData.locations, { ...currentLocation, name: locationName }]);
-        setCurrentLocation(null);
-        setLocationName('');
-      }
+    const handleRecurringFrequencyChange = (frequency: 'daily' | 'weekly' | 'monthly') => {
+      onRecurringChange(frequency, formData.repeatDays || []);
     };
   
-    const removeLocation = (index: number) => {
-      onLocationChange(formData.locations.filter((_, i) => i !== index));
+    const handleRecurringDaysChange = (days: string[]) => {
+      onRecurringChange(formData.repeatFrequency || 'daily', days);
     };
   
     const toggleTag = (tag: string) => {
       onTagToggle(tag);
     };
   
-    const panResponder = PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: (_, gesture) => {
-        pan.setOffset({
-          x: 0,
-          y: gesture.dy
-        });
-        pan.setValue({ x: 0, y: 0 });
-      },
-      onPanResponderMove: (_, gesture) => {
-        pan.setValue({ x: 0, y: gesture.dy });
-      },
-      onPanResponderRelease: (_, gesture) => {
-        pan.flattenOffset();
-        const moveDistance = Math.abs(gesture.dy);
-        const moveThreshold = 50;
-        
-        if (moveDistance > moveThreshold && draggingLocationIndex !== null) {
-          const itemHeight = 80;
-          const moveDirection = gesture.dy > 0 ? 1 : -1;
-          const newIndex = Math.max(
-            0,
-            Math.min(
-              formData.locations.length - 1,
-              draggingLocationIndex + moveDirection
-            )
-          );
-          
-          if (newIndex !== draggingLocationIndex) {
-            const newLocations = [...formData.locations];
-            const [movedItem] = newLocations.splice(draggingLocationIndex, 1);
-            newLocations.splice(newIndex, 0, movedItem);
-            onLocationChange(newLocations);
-          }
-        }
-        
-        Animated.spring(pan, {
-          toValue: { x: 0, y: 0 },
-          useNativeDriver: false,
-          tension: 40,
-          friction: 5
-        }).start(() => setDraggingLocationIndex(null));
+    const handleDateChange = (date: Date) => {
+      if (showEndDatePicker) {
+        onEndDateChange(date);
+      } else {
+        onDateChange(date);
       }
-    });
-  
-    const handleLocationDragStart = (index: number) => {
-      setDraggingLocationIndex(index);
+      setShowDatePicker(false);
+      setShowEndDatePicker(false);
     };
   
     if (loading) {
@@ -155,397 +136,507 @@ const COMMON_TAGS = [
     }
   
     return (
-      <View style={{ flex: 1, backgroundColor: colors.white }}>
-        <ScrollView 
-          ref={scrollViewRef}
-          style={[commonStyles.container, { backgroundColor: colors.white }]}
-          scrollEnabled={draggingLocationIndex === null}
-        >
-          {/* Header Section */}
-          <View style={{
-            padding: spacing.base,
-            paddingTop: spacing.lg,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.gray[200],
-            marginBottom: spacing.sm,
-          }}>
-            <View style={[commonStyles.row, { justifyContent: 'space-between' }]}>
-              <Text style={[commonStyles.title, { color: colors.gray[900] }]}>
-                {isEditing ? 'Edit Event' : 'Create New Event'}
-              </Text>
-            </View>
-          </View>
-  
-          {/* Main Content */}
+      <>
+        <ScrollView ref={scrollViewRef} style={commonStyles.container}>
           <View style={{ padding: spacing.sm }}>
-            {/* Basic Information */}
-            <View style={{ marginBottom: spacing.lg }}>
-              <SectionHeader title="Basic Information" />
-              <View style={{ gap: spacing.sm }}>
-                <FormInput
-                  label="Event Title"
-                  required
-                  value={formData.title}
-                  onChangeText={(text) => {
-                    onInputChange('title', text);
+            {/* Header Section */}
+            <View style={{
+              padding: spacing.xs,
+              borderBottomWidth: 1,
+              borderBottomColor: colors.gray[200],
+              marginBottom: spacing.sm,
+            }}>
+              <View style={[commonStyles.row, { justifyContent: 'space-between', alignItems: 'center' }]}>
+                <Text style={[commonStyles.title, { color: colors.gray[900] }]}>
+                  {isEditing ? 'Edit Event' : 'Create New Event'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setFormData({
+                      title: '',
+                      description: '',
+                      type: 'one-time',
+                      locations: [],
+                      startDate: new Date(),
+                      startTime: '09:00',
+                      endTime: '17:00',
+                      tags: [],
+                      capacity: 4,
+                      access: 'public',
+                      status: 'public'
+                    });
+                    setErrors({});
+                    setFocusedFields(new Set());
+                    setHasSubmitted(false);
                   }}
-                  error={errors.title}
-                  placeholder="Enter event title"
-                  autoCapitalize="words"
-                />
+                  style={{
+                    padding: spacing.xs,
+                    borderRadius: spacing.xs,
+                    backgroundColor: colors.gray[100],
+                  }}
+                >
+                  <Text style={[commonStyles.text, { 
+                    color: colors.gray[600],
+                    fontSize: typography.fontSize.sm,
+                  }]}>
+                    Clear Form
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
-  
-            {/* Date & Time Section */}
-            <View style={{ marginBottom: spacing.lg }}>
-              <SectionHeader title="Date & Time" />
-              <View style={{ gap: spacing.sm }}>
-                <DateTimePickerField
-                  label="Start Date"
-                  required
-                  value={formData.startDate}
-                  onPress={() => setShowDatePicker(true)}
-                  error={errors.date}
-                />
-  
-                <View style={[commonStyles.row, { gap: spacing.sm }]}>
-                  <DateTimePickerField
-                    label="Start Time"
-                    required
-                    value={formData.startTime}
-                    onPress={() => setShowTimePicker('start')}
-                    error={errors.time}
-                    style={{ flex: 1 }}
-                  />
-                  <DateTimePickerField
-                    label="End Time"
-                    required
-                    value={formData.endTime}
-                    onPress={() => setShowTimePicker('end')}
-                    error={errors.time}
-                    style={{ flex: 1 }}
+    
+            {/* Main Content */}
+            <View style={{ padding: spacing.sm }}>
+              {/* Basic Information */}
+              <View style={{ marginBottom: spacing.lg }}>
+                <SectionHeader title="Basic Information" />
+                <View style={{ gap: spacing.sm }}>
+                  <FormInput
+                    label="Event Title"
+                    value={formData.title}
+                    onChangeText={(text) => onInputChange('title', text)}
+                    error={errors.title}
+                    placeholder="Enter event title"
+                    autoCapitalize="words"
+                    onFocus={() => handleFocus('title')}
+                    onBlur={() => handleBlur('title')}
+                    isFocused={focusedFields.has('title')}
+                    hasSubmitted={hasSubmitted}
                   />
                 </View>
               </View>
-            </View>
-  
-            {/* Location Section */}
-            <View style={{ marginBottom: spacing.lg }}>
-              <SectionHeader title="Location" required />
-              <LocationPicker
-                currentLocation={currentLocation}
-                locationName={locationName}
-                setLocationName={setLocationName}
-                handleMapPress={handleMapPress}
-                addLocation={addLocation}
-                locations={formData.locations}
-                removeLocation={removeLocation}
-                draggingLocationIndex={draggingLocationIndex}
-                panResponder={panResponder}
-                pan={pan}
-                handleLocationDragStart={handleLocationDragStart}
-                locationPermissionStatus={locationPermissionStatus}
-                userLocation={userLocation}
-                error={errors.location}
-              />
-            </View>
-  
-            {/* Event Type Section */}
-            <View style={{ marginBottom: spacing.lg }}>
-              <SectionHeader title="Event Type" />
-              <View style={[commonStyles.row, { gap: spacing.xs }]}>
-                <TouchableOpacity
-                  style={[
-                    commonStyles.button,
-                    {
-                      flex: 1,
-                      backgroundColor: formData.type === 'one-time' ? colors.primary : colors.white,
-                      borderWidth: 1,
-                      borderColor: formData.type === 'one-time' ? colors.primary : colors.gray[200],
-                      paddingVertical: spacing.xs,
-                      paddingHorizontal: spacing.sm,
-                    }
-                  ]}
-                  onPress={() => onTypeChange('one-time')}
-                >
-                  <Text style={[
-                    commonStyles.text,
-                    { 
-                      color: formData.type === 'one-time' ? colors.white : colors.gray[700],
-                      fontSize: typography.fontSize.sm,
-                    }
-                  ]}>
-                    One-time Event
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    commonStyles.button,
-                    {
-                      flex: 1,
-                      backgroundColor: formData.type === 'recurring' ? colors.primary : colors.white,
-                      borderWidth: 1,
-                      borderColor: formData.type === 'recurring' ? colors.primary : colors.gray[200],
-                      paddingVertical: spacing.xs,
-                      paddingHorizontal: spacing.sm,
-                    }
-                  ]}
-                  onPress={() => onTypeChange('recurring')}
-                >
-                  <Text style={[
-                    commonStyles.text,
-                    { 
-                      color: formData.type === 'recurring' ? colors.white : colors.gray[700],
-                      fontSize: typography.fontSize.sm,
-                    }
-                  ]}>
-                    Recurring Event
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-  
-            {/* Recurring Event Options */}
-            {formData.type === 'recurring' && (
+    
+              {/* Date & Time Section */}
               <View style={{ marginBottom: spacing.lg }}>
-                <SectionHeader title="Recurring Options" />
+                <SectionHeader title="Date & Time" />
                 <View style={{ gap: spacing.sm }}>
-                  <View>
-                    <Text style={[commonStyles.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>
-                      Repeat Frequency
-                    </Text>
-                    <View style={[commonStyles.row, { gap: spacing.xs }]}>
-                      {['daily', 'weekly', 'monthly'].map((freq) => (
-                        <TouchableOpacity
-                          key={freq}
-                          style={[
-                            commonStyles.button,
-                            {
-                              flex: 1,
-                              backgroundColor: formData.repeatFrequency === freq ? colors.primary : colors.white,
-                              borderWidth: 1,
-                              borderColor: formData.repeatFrequency === freq ? colors.primary : colors.gray[200],
-                              paddingVertical: spacing.xs,
-                              paddingHorizontal: spacing.sm,
-                            }
-                          ]}
-                          onPress={() => onRecurringChange(freq as any, formData.repeatDays || [])}
-                        >
-                          <Text style={[
-                            commonStyles.text,
-                            { 
-                              color: formData.repeatFrequency === freq ? colors.white : colors.gray[700],
-                              fontSize: typography.fontSize.sm,
-                            }
-                          ]}>
-                            {freq.charAt(0).toUpperCase() + freq.slice(1)}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-  
-                  {formData.repeatFrequency === 'weekly' && (
-                    <View>
-                      <Text style={[commonStyles.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>
-                        Repeat Days
-                      </Text>
-                      <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.xs }]}>
-                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                          <TouchableOpacity
-                            key={day}
-                            style={[
-                              commonStyles.button,
-                              {
-                                backgroundColor: formData.repeatDays?.includes(day) ? colors.primary : colors.white,
-                                borderWidth: 1,
-                                borderColor: formData.repeatDays?.includes(day) ? colors.primary : colors.gray[200],
-                                paddingVertical: spacing.xs,
-                                paddingHorizontal: spacing.sm,
-                                minWidth: 40,
-                              }
-                            ]}
-                            onPress={() => {
-                              onRecurringChange(formData.repeatFrequency, formData.repeatDays?.includes(day)
-                                ? formData.repeatDays.filter(d => d !== day)
-                                : [...(formData.repeatDays || []), day]
-                              );
-                            }}
-                          >
-                            <Text style={[
-                              commonStyles.text,
-                              { 
-                                color: formData.repeatDays?.includes(day) ? colors.white : colors.gray[700],
-                                fontSize: typography.fontSize.sm,
-                              }
-                            ]}>
-                              {day}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                  )}
-  
+                  <DateTimePickerField
+                    label="Start Date"
+                    value={formData.startDate}
+                    onPress={() => setShowDatePicker(true)}
+                    error={errors.date}
+                    onFocus={() => handleFocus('startDate')}
+                    onBlur={() => handleBlur('startDate')}
+                    isFocused={focusedFields.has('startDate')}
+                    hasSubmitted={hasSubmitted}
+                    minimumDate={isEditing ? undefined : new Date()}
+                  />
+    
                   <DateTimePickerField
                     label="End Date"
-                    value={formData.endDate?.toLocaleDateString() || 'Select End Date'}
+                    value={formData.endDate || formData.startDate}
                     onPress={() => setShowEndDatePicker(true)}
+                    error={errors.date}
+                    onFocus={() => handleFocus('endDate')}
+                    onBlur={() => handleBlur('endDate')}
+                    isFocused={focusedFields.has('endDate')}
+                    hasSubmitted={hasSubmitted}
+                    minimumDate={formData.startDate}
                   />
+    
+                  <View style={[commonStyles.row, { gap: spacing.sm }]}>
+                    <DateTimePickerField
+                      label="Start Time"
+                      value={formData.startTime}
+                      onPress={() => setShowTimePicker('start')}
+                      error={errors.time}
+                      style={{ flex: 1 }}
+                      onFocus={() => handleFocus('startTime')}
+                      onBlur={() => handleBlur('startTime')}
+                      isFocused={focusedFields.has('startTime')}
+                      hasSubmitted={hasSubmitted}
+                    />
+                    <DateTimePickerField
+                      label="End Time"
+                      value={formData.endTime}
+                      onPress={() => setShowTimePicker('end')}
+                      error={errors.time}
+                      style={{ flex: 1 }}
+                      onFocus={() => handleFocus('endTime')}
+                      onBlur={() => handleBlur('endTime')}
+                      isFocused={focusedFields.has('endTime')}
+                      hasSubmitted={hasSubmitted}
+                    />
+                  </View>
                 </View>
               </View>
-            )}
-  
-            {/* Tags Section */}
-            <View style={{ marginBottom: spacing.lg }}>
-              <SectionHeader title="Event Tags" />
-              <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
-                {COMMON_TAGS.map((tag) => (
-                  <Tag
-                    key={tag}
-                    label={tag}
-                    isSelected={formData.tags.includes(tag)}
-                    onPress={() => toggleTag(tag)}
-                  />
-                ))}
-              </View>
-            </View>
-  
-            {/* Capacity Section */}
-            <View style={{ marginBottom: spacing.lg }}>
-              <SectionHeader title="Event Capacity" />
-              <CapacitySelector
-                capacity={formData.capacity}
-                onIncrease={() => onCapacityChange(Math.min(99, (formData.capacity || 10) + 1))}
-                onDecrease={() => onCapacityChange(Math.max(1, (formData.capacity || 10) - 1))}
-                onChange={(text) => {
-                  const num = parseInt(text);
-                  if (!isNaN(num) && num >= 1 && num <= 99) {
-                    onCapacityChange(num);
-                  }
-                }}
-              />
-            </View>
-  
-            {/* Access Control Section */}
-            <View style={{ marginBottom: spacing.lg }}>
-              <SectionHeader title="Access Control" />
-              <View style={[commonStyles.row, { gap: spacing.xs }]}>
-                <TouchableOpacity
-                  style={[
-                    commonStyles.button,
-                    {
-                      flex: 1,
-                      backgroundColor: formData.status === 'open' ? colors.primary : colors.white,
-                      borderWidth: 1,
-                      borderColor: formData.status === 'open' ? colors.primary : colors.gray[200],
-                      paddingVertical: spacing.xs,
-                      paddingHorizontal: spacing.sm,
+    
+              {/* Location Section */}
+              <View style={{ marginBottom: spacing.lg }}>
+                <SectionHeader title="Location" />
+                <LocationPicker
+                  locations={formData.locations}
+                  onLocationChange={onLocationChange}
+                  userLocation={userLocation}
+                  locationPermissionStatus={locationPermissionStatus}
+                  onRequestPermission={async () => {
+                    const { status } = await Location.requestForegroundPermissionsAsync();
+                    if (status === 'granted') {
+                      const location = await Location.getCurrentPositionAsync({});
+                      onLocationChange([{
+                        name: 'Current Location',
+                        latitude: location.coords.latitude,
+                        longitude: location.coords.longitude
+                      }]);
                     }
-                  ]}
-                  onPress={() => onAccessControlChange('open')}
-                >
-                  <Text style={[
-                    commonStyles.text,
-                    { 
-                      color: formData.status === 'open' ? colors.white : colors.gray[700],
-                      fontSize: typography.fontSize.sm,
-                      textAlign: 'center',
-                    }
-                  ]}>
-                    Open
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    commonStyles.button,
-                    {
-                      flex: 1,
-                      backgroundColor: formData.status === 'verification_required' ? colors.primary : colors.white,
-                      borderWidth: 1,
-                      borderColor: formData.status === 'verification_required' ? colors.primary : colors.gray[200],
-                      paddingVertical: spacing.xs,
-                      paddingHorizontal: spacing.sm,
-                    }
-                  ]}
-                  onPress={() => onAccessControlChange('verification_required')}
-                >
-                  <Text style={[
-                    commonStyles.text,
-                    { 
-                      color: formData.status === 'verification_required' ? colors.white : colors.gray[700],
-                      fontSize: typography.fontSize.sm,
-                      textAlign: 'center',
-                    }
-                  ]}>
-                    Verification Required
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-  
-            {/* Description Section */}
-            <View style={{ marginBottom: spacing.lg }}>
-              <SectionHeader title="Description" required />
-              <View>
-                <TextInput
-                  style={[
-                    commonStyles.input, 
-                    commonStyles.textArea, 
-                    { borderColor: errors.description ? colors.danger : colors.gray[200] }
-                  ]}
-                  placeholder="Tell us about your event..."
-                  value={formData.description}
-                  onChangeText={(text) => {
-                    onInputChange('description', text);
                   }}
-                  multiline
-                  numberOfLines={4}
+                  onFocus={() => handleFocus('locations')}
+                  onBlur={() => handleBlur('locations')}
+                  isFocused={focusedFields.has('locations')}
+                  hasSubmitted={hasSubmitted}
+                  error={errors.location}
                 />
-                <View style={[commonStyles.row, { justifyContent: 'space-between', marginTop: spacing.xs }]}>
-                  {errors.description && (
-                    <Text style={[commonStyles.textSecondary, { color: colors.danger }]}>
-                      {errors.description}
+              </View>
+    
+              {/* Event Type */}
+              <View style={{ marginBottom: spacing.lg }}>
+                <SectionHeader title="Event Type" />
+                <View style={[commonStyles.row, { gap: spacing.xs }]}>
+                  <TouchableOpacity
+                    style={[
+                      commonStyles.button,
+                      {
+                        flex: 1,
+                        backgroundColor: formData.type === 'one-time' ? colors.primary : colors.white,
+                        borderWidth: 1,
+                        borderColor: colors.primary,
+                        paddingVertical: spacing.xs,
+                        paddingHorizontal: spacing.sm,
+                      }
+                    ]}
+                    onPress={() => onTypeChange('one-time')}
+                  >
+                    <Text style={[
+                      commonStyles.text,
+                      {
+                        color: formData.type === 'one-time' ? colors.white : colors.primary,
+                        fontSize: typography.fontSize.sm,
+                      }
+                    ]}>
+                      One-time
                     </Text>
-                  )}
-                  <Text style={[commonStyles.textSecondary, { textAlign: 'right' }]}>
-                    {formData.description.length}/500
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      commonStyles.button,
+                      {
+                        flex: 1,
+                        backgroundColor: formData.type === 'recurring' ? colors.primary : colors.white,
+                        borderWidth: 1,
+                        borderColor: colors.primary,
+                        paddingVertical: spacing.xs,
+                        paddingHorizontal: spacing.sm,
+                      }
+                    ]}
+                    onPress={() => onTypeChange('recurring')}
+                  >
+                    <Text style={[
+                      commonStyles.text,
+                      {
+                        color: formData.type === 'recurring' ? colors.white : colors.primary,
+                        fontSize: typography.fontSize.sm,
+                      }
+                    ]}>
+                      Recurring
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+    
+              {/* Recurring Options Section */}
+              {formData.type === 'recurring' && (
+                <View style={{ marginBottom: spacing.lg }}>
+                  <SectionHeader title="Recurring Schedule" />
+                  <View style={{ gap: spacing.sm }}>
+                    <View style={[commonStyles.row, { gap: spacing.xs }]}>
+                      <TouchableOpacity
+                        style={[
+                          commonStyles.button,
+                          {
+                            flex: 1,
+                            backgroundColor: formData.repeatFrequency === 'daily' ? colors.primary : colors.white,
+                            borderWidth: 1,
+                            borderColor: colors.primary,
+                            paddingVertical: spacing.xs,
+                            paddingHorizontal: spacing.sm,
+                          }
+                        ]}
+                        onPress={() => onRecurringChange('daily', formData.repeatDays || [])}
+                      >
+                        <Text style={[
+                          commonStyles.text,
+                          {
+                            color: formData.repeatFrequency === 'daily' ? colors.white : colors.primary,
+                            fontSize: typography.fontSize.sm,
+                          }
+                        ]}>
+                          Daily
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          commonStyles.button,
+                          {
+                            flex: 1,
+                            backgroundColor: formData.repeatFrequency === 'weekly' ? colors.primary : colors.white,
+                            borderWidth: 1,
+                            borderColor: colors.primary,
+                            paddingVertical: spacing.xs,
+                            paddingHorizontal: spacing.sm,
+                          }
+                        ]}
+                        onPress={() => onRecurringChange('weekly', formData.repeatDays || [])}
+                      >
+                        <Text style={[
+                          commonStyles.text,
+                          {
+                            color: formData.repeatFrequency === 'weekly' ? colors.white : colors.primary,
+                            fontSize: typography.fontSize.sm,
+                          }
+                        ]}>
+                          Weekly
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          commonStyles.button,
+                          {
+                            flex: 1,
+                            backgroundColor: formData.repeatFrequency === 'monthly' ? colors.primary : colors.white,
+                            borderWidth: 1,
+                            borderColor: colors.primary,
+                            paddingVertical: spacing.xs,
+                            paddingHorizontal: spacing.sm,
+                          }
+                        ]}
+                        onPress={() => onRecurringChange('monthly', formData.repeatDays || [])}
+                      >
+                        <Text style={[
+                          commonStyles.text,
+                          {
+                            color: formData.repeatFrequency === 'monthly' ? colors.white : colors.primary,
+                            fontSize: typography.fontSize.sm,
+                          }
+                        ]}>
+                          Monthly
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+    
+                    {formData.repeatFrequency === 'weekly' && (
+                      <View style={{ gap: spacing.xs }}>
+                        <Text style={[commonStyles.text, { color: colors.gray[600] }]}>Select Days</Text>
+                        <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.xs }]}>
+                          {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                            <TouchableOpacity
+                              key={day}
+                              style={[
+                                commonStyles.button,
+                                {
+                                  backgroundColor: formData.repeatDays?.includes(day) ? colors.primary : colors.white,
+                                  borderWidth: 1,
+                                  borderColor: colors.primary,
+                                  paddingVertical: spacing.xs,
+                                  paddingHorizontal: spacing.sm,
+                                }
+                              ]}
+                              onPress={() => {
+                                const currentDays = formData.repeatDays || [];
+                                const newDays = currentDays.includes(day)
+                                  ? currentDays.filter(d => d !== day)
+                                  : [...currentDays, day];
+                                onRecurringChange('weekly', newDays);
+                              }}
+                            >
+                              <Text style={[
+                                commonStyles.text,
+                                {
+                                  color: formData.repeatDays?.includes(day) ? colors.white : colors.primary,
+                                  fontSize: typography.fontSize.sm,
+                                }
+                              ]}>
+                                {day.slice(0, 3)}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+    
+              {/* Access Control Section */}
+              <View style={{ marginBottom: spacing.lg }}>
+                <SectionHeader title="Access Control" />
+                <View style={{ gap: spacing.xs }}>
+                  <View style={[commonStyles.row, { gap: spacing.xs }]}>
+                    <TouchableOpacity
+                      style={[
+                        commonStyles.button,
+                        {
+                          flex: 1,
+                          backgroundColor: formData.access === 'public' ? colors.primary : colors.white,
+                          borderWidth: 1,
+                          borderColor: colors.primary,
+                          paddingVertical: spacing.xs,
+                          paddingHorizontal: spacing.sm,
+                        }
+                      ]}
+                      onPress={() => {
+                        onAccessControlChange('public');
+                        onStatusChange('public');
+                      }}
+                    >
+                      <Text style={[
+                        commonStyles.text,
+                        {
+                          color: formData.access === 'public' ? colors.white : colors.primary,
+                          fontSize: typography.fontSize.sm,
+                        }
+                      ]}>
+                        Public
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        commonStyles.button,
+                        {
+                          flex: 1,
+                          backgroundColor: formData.access === 'private' ? colors.primary : colors.white,
+                          borderWidth: 1,
+                          borderColor: colors.primary,
+                          paddingVertical: spacing.xs,
+                          paddingHorizontal: spacing.sm,
+                        }
+                      ]}
+                      onPress={() => {
+                        onAccessControlChange('private');
+                        onStatusChange('private');
+                      }}
+                    >
+                      <Text style={[
+                        commonStyles.text,
+                        {
+                          color: formData.access === 'private' ? colors.white : colors.primary,
+                          fontSize: typography.fontSize.sm,
+                        }
+                      ]}>
+                        Private
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[commonStyles.text, { 
+                    color: colors.gray[600],
+                    fontSize: typography.fontSize.sm,
+                    marginTop: spacing.xs
+                  }]}>
+                    {formData.access === 'public' 
+                      ? 'Anyone can view and join this event'
+                      : 'Participants need your approval to join this event'}
                   </Text>
                 </View>
               </View>
-            </View>
-  
-            {/* Submit Button */}
-            <TouchableOpacity 
-              style={[
-                commonStyles.button,
-                { 
-                  backgroundColor: colors.white,
-                  borderWidth: 1,
-                  borderColor: colors.primary,
-                  marginBottom: spacing.lg,
-                  paddingVertical: spacing.sm,
-                  paddingHorizontal: spacing.base,
-                }
-              ]} 
-              onPress={onSubmit}
-              disabled={loading || !formData.title || !formData.description || formData.locations.length === 0}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.primary} size="small" />
-              ) : (
-                <Text style={[
-                  commonStyles.text, 
+    
+              {/* Capacity Section */}
+              <View style={{ marginBottom: spacing.lg }}>
+                <SectionHeader title="Event Capacity" />
+                <CapacitySelector
+                  capacity={formData.capacity}
+                  onIncrease={() => onCapacityChange(Math.min(99, (formData.capacity || 10) + 1))}
+                  onDecrease={() => onCapacityChange(Math.max(1, (formData.capacity || 10) - 1))}
+                  onChange={(text) => {
+                    const num = parseInt(text);
+                    if (!isNaN(num) && num >= 1 && num <= 99) {
+                      onCapacityChange(num);
+                    }
+                  }}
+                />
+              </View>
+    
+              {/* Description Section */}
+              <View style={{ marginBottom: spacing.lg }}>
+                <SectionHeader title="Description" />
+                <View>
+                  <TextInput
+                    style={[
+                      commonStyles.input, 
+                      commonStyles.textArea, 
+                      { 
+                        borderColor: (focusedFields.has('description') || hasSubmitted) && errors.description 
+                          ? colors.danger 
+                          : focusedFields.has('description')
+                          ? colors.primary
+                          : colors.gray[200]
+                      }
+                    ]}
+                    placeholder="Tell us about your event..."
+                    value={formData.description}
+                    onChangeText={(text) => onInputChange('description', text)}
+                    multiline
+                    numberOfLines={4}
+                    onFocus={() => handleFocus('description')}
+                    onBlur={() => handleBlur('description')}
+                  />
+                  <View style={[commonStyles.row, { justifyContent: 'space-between', marginTop: spacing.xs }]}>
+                    {(focusedFields.has('description') || hasSubmitted) && errors.description && (
+                      <Text style={[commonStyles.textSecondary, { color: colors.danger }]}>
+                        {errors.description}
+                      </Text>
+                    )}
+                    <Text style={[commonStyles.textSecondary, { textAlign: 'right' }]}>
+                      {formData.description.length}/500
+                    </Text>
+                  </View>
+                </View>
+              </View>
+    
+              {/* Tags Section */}
+              <View style={{ marginBottom: spacing.lg }}>
+                <SectionHeader title="Event Tags" />
+                <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
+                  {COMMON_TAGS.map((tag) => (
+                    <Tag
+                      key={tag}
+                      label={tag}
+                      isSelected={formData.tags.includes(tag)}
+                      onPress={() => toggleTag(tag)}
+                    />
+                  ))}
+                </View>
+              </View>
+    
+              {/* Submit Button */}
+              <TouchableOpacity 
+                style={[
+                  commonStyles.button,
                   { 
-                    color: colors.primary, 
-                    fontSize: typography.fontSize.base,
-                    fontWeight: '500',
+                    backgroundColor: colors.primary,
+                    marginBottom: spacing.lg,
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.base,
                   }
-                ]}>
-                  {isEditing ? 'Update Event' : 'Create Event'}
-                </Text>
-              )}
-            </TouchableOpacity>
+                ]} 
+                onPress={onSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color={colors.white} size="small" />
+                ) : (
+                  <Text style={[
+                    commonStyles.text, 
+                    { 
+                      color: colors.white, 
+                      fontSize: typography.fontSize.base,
+                      fontWeight: '500',
+                      textAlign: 'center',
+                    }
+                  ]}>
+                    {isEditing ? 'Update Event' : 'Create Event'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
   
@@ -555,10 +646,10 @@ const COMMON_TAGS = [
             value={formData.startDate}
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            minimumDate={isEditing ? undefined : new Date()}
             onChange={(event: any, date?: Date) => {
-              setShowDatePicker(false);
               if (date) {
-                onDateChange(date);
+                handleDateChange(date);
               }
             }}
           />
@@ -566,13 +657,13 @@ const COMMON_TAGS = [
   
         {showEndDatePicker && (
           <DateTimePicker
-            value={formData.endDate || new Date()}
+            value={formData.endDate || formData.startDate}
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            minimumDate={formData.startDate}
             onChange={(event: any, date?: Date) => {
-              setShowEndDatePicker(false);
               if (date) {
-                onDateChange(date);
+                handleDateChange(date);
               }
             }}
           />
@@ -591,11 +682,25 @@ const COMMON_TAGS = [
                   hour: '2-digit',
                   minute: '2-digit'
                 });
-                onTimeChange(new Date(timeString));
+                if (showTimePicker === 'start') {
+                  onInputChange('startTime', timeString);
+                } else {
+                  onInputChange('endTime', timeString);
+                }
               }
             }}
           />
         )}
-      </View>
+
+        {/* Custom Alert - Modal component */}
+        {alertConfig && (
+          <CustomAlert
+            visible={showAlert}
+            title={alertConfig.title}
+            message={alertConfig.message}
+            buttons={alertConfig.buttons}
+          />
+        )}
+      </>
     );
   }; 

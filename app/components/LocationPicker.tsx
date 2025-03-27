@@ -1,52 +1,113 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Animated, TextInput } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, Animated, PanResponder } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { colors, typography, spacing, commonStyles } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, spacing } from '../theme';
-
-interface Location {
-  name: string;
-  latitude: number;
-  longitude: number;
-}
+import * as Location from 'expo-location';
+import { EventLocation } from '../hooks/useEventForm';
 
 interface LocationPickerProps {
-  currentLocation: Location | null;
-  locationName: string;
-  setLocationName: (name: string) => void;
-  handleMapPress: (event: any) => void;
-  addLocation: () => void;
-  locations: Location[];
-  removeLocation: (index: number) => void;
-  draggingLocationIndex: number | null;
-  panResponder: any;
-  pan: Animated.ValueXY;
-  handleLocationDragStart: (index: number) => void;
-  locationPermissionStatus: 'granted' | 'denied' | 'pending';
-  requestLocationPermission: () => void;
+  locations: EventLocation[];
+  onLocationChange: (locations: EventLocation[]) => void;
   userLocation: { latitude: number; longitude: number } | null;
+  locationPermissionStatus: 'granted' | 'denied' | 'pending';
+  onRequestPermission: () => Promise<void>;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  isFocused?: boolean;
+  hasSubmitted?: boolean;
   error?: string;
 }
 
 export const LocationPicker: React.FC<LocationPickerProps> = ({
-  currentLocation,
-  locationName,
-  setLocationName,
-  handleMapPress,
-  addLocation,
   locations,
-  removeLocation,
-  draggingLocationIndex,
-  panResponder,
-  pan,
-  handleLocationDragStart,
-  locationPermissionStatus,
-  requestLocationPermission,
+  onLocationChange,
   userLocation,
-  error,
+  locationPermissionStatus,
+  onRequestPermission,
+  onFocus,
+  onBlur,
+  isFocused,
+  hasSubmitted,
+  error
 }) => {
+  const [currentLocation, setCurrentLocation] = useState<EventLocation | null>(null);
+  const [locationName, setLocationName] = useState('');
+  const [draggingLocationIndex, setDraggingLocationIndex] = useState<number | null>(null);
+  const pan = useRef(new Animated.ValueXY()).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (_, gestureState) => {
+        pan.setOffset({
+          x: pan.x._value,
+          y: pan.y._value
+        });
+        pan.setValue({ x: 0, y: 0 });
+      },
+      onPanResponderMove: Animated.event(
+        [null, { dx: pan.x, dy: pan.y }],
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: (_, gestureState) => {
+        pan.flattenOffset();
+        if (draggingLocationIndex !== null) {
+          const newLocations = [...locations];
+          const draggedLocation = newLocations[draggingLocationIndex];
+          newLocations.splice(draggingLocationIndex, 1);
+          const newIndex = Math.min(
+            Math.max(0, Math.floor((gestureState.moveY - 100) / 60)),
+            newLocations.length
+          );
+          newLocations.splice(newIndex, 0, draggedLocation);
+          onLocationChange(newLocations);
+        }
+        setDraggingLocationIndex(null);
+        Animated.spring(pan, {
+          toValue: { x: 0, y: 0 },
+          useNativeDriver: false
+        }).start();
+      }
+    })
+  ).current;
+
+  const handleMapPress = (event: any) => {
+    const { coordinate } = event.nativeEvent;
+    setCurrentLocation({
+      name: '',
+      latitude: coordinate.latitude,
+      longitude: coordinate.longitude
+    });
+  };
+
+  const addLocation = () => {
+    if (currentLocation && locationName.trim()) {
+      onLocationChange([...locations, { ...currentLocation, name: locationName.trim() }]);
+      setCurrentLocation(null);
+      setLocationName('');
+    }
+  };
+
+  const removeLocation = (index: number) => {
+    const newLocations = locations.filter((_, i) => i !== index);
+    onLocationChange(newLocations);
+  };
+
+  const handleLocationDragStart = (index: number) => {
+    setDraggingLocationIndex(index);
+  };
+
+  const initialRegion = userLocation ? {
+    latitude: userLocation.latitude,
+    longitude: userLocation.longitude,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  } : undefined;
+
   return (
-    <View style={{ gap: spacing.sm }}>
+    <View style={styles.container}>
       <View>
         <Text style={[typography.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>
           Location Name
@@ -55,7 +116,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           style={[
             {
               borderWidth: 1,
-              borderColor: error ? colors.danger : colors.gray[200],
+              borderColor: (isFocused || hasSubmitted) && error ? colors.danger : colors.gray[200],
               borderRadius: 8,
               padding: spacing.sm,
               fontSize: typography.fontSize.base,
@@ -66,22 +127,20 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           placeholder="Enter location name"
           value={locationName}
           onChangeText={setLocationName}
+          onFocus={onFocus}
+          onBlur={onBlur}
         />
       </View>
 
-      <View style={{ height: 200, marginVertical: spacing.sm }}>
+      <View style={styles.mapContainer}>
         {locationPermissionStatus === 'pending' ? (
-          <View style={{ padding: spacing.lg, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={styles.permissionContainer}>
             <Text style={[typography.body, { textAlign: 'center', marginBottom: spacing.base }]}>
               We need your location to show nearby places
             </Text>
             <TouchableOpacity
-              style={{
-                backgroundColor: colors.primary,
-                padding: spacing.sm,
-                borderRadius: 8,
-              }}
-              onPress={requestLocationPermission}
+              style={styles.permissionButton}
+              onPress={onRequestPermission}
             >
               <Text style={[typography.body, { color: colors.white }]}>Grant Location Access</Text>
             </TouchableOpacity>
@@ -89,22 +148,29 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         ) : (
           <MapView
             provider={PROVIDER_GOOGLE}
-            style={{ width: '100%', height: '100%' }}
-            initialRegion={{
-              latitude: userLocation?.latitude || 37.78825,
-              longitude: userLocation?.longitude || -122.4324,
-              latitudeDelta: 0.0922,
-              longitudeDelta: 0.0421,
-            }}
-            showsUserLocation={locationPermissionStatus === 'granted'}
+            style={styles.map}
+            initialRegion={initialRegion}
             onPress={handleMapPress}
+            showsUserLocation
+            showsMyLocationButton
           >
+            {locations.map((location, index) => (
+              <Marker
+                key={index}
+                coordinate={{
+                  latitude: location.latitude,
+                  longitude: location.longitude
+                }}
+                title={location.name}
+              />
+            ))}
             {currentLocation && (
               <Marker
                 coordinate={{
                   latitude: currentLocation.latitude,
-                  longitude: currentLocation.longitude,
+                  longitude: currentLocation.longitude
                 }}
+                pinColor={colors.primary}
               />
             )}
           </MapView>
@@ -112,14 +178,9 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       </View>
 
       <TouchableOpacity 
-        style={{
-          backgroundColor: colors.primary,
-          padding: spacing.sm,
-          borderRadius: 8,
-          alignItems: 'center',
-        }}
+        style={[styles.addButton, !currentLocation && styles.addButtonDisabled]}
         onPress={addLocation}
-        disabled={!currentLocation || !locationName}
+        disabled={!currentLocation || !locationName.trim()}
       >
         <Text style={[typography.body, { color: colors.white }]}>Add Location</Text>
       </TouchableOpacity>
@@ -132,21 +193,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           <Text style={[typography.caption, { fontStyle: 'italic', marginBottom: spacing.sm }]}>
             Hold and drag ≡ to reorder locations
           </Text>
-          {locations.map((loc, index) => (
+          {locations.map((location, index) => (
             <Animated.View
               key={index}
               style={[
-                {
-                  backgroundColor: colors.white,
-                  borderRadius: 8,
-                  padding: spacing.sm,
-                  marginBottom: spacing.sm,
-                  shadowColor: colors.shadow.color,
-                  shadowOffset: colors.shadow.offset,
-                  shadowOpacity: colors.shadow.opacity,
-                  shadowRadius: colors.shadow.radius,
-                  elevation: 3,
-                },
+                styles.locationItem,
                 draggingLocationIndex === index && {
                   transform: [{ translateY: pan.y }],
                   shadowOpacity: colors.shadow.opacity * 2,
@@ -155,22 +206,22 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
               ]}
               {...(draggingLocationIndex === index ? panResponder.panHandlers : {})}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={styles.locationContent}>
                 <TouchableOpacity
                   onPressIn={() => handleLocationDragStart(index)}
-                  style={{ marginRight: spacing.sm }}
+                  style={styles.dragHandle}
                 >
                   <Ionicons name="menu" size={24} color={colors.gray[600]} />
                 </TouchableOpacity>
-                <View style={{ flex: 1 }}>
-                  <Text style={typography.body}>{loc.name}</Text>
+                <View style={styles.locationInfo}>
+                  <Text style={typography.body}>{location.name}</Text>
                   <Text style={typography.caption}>
-                    {loc.latitude.toFixed(6)}, {loc.longitude.toFixed(6)}
+                    {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                   </Text>
                 </View>
                 <TouchableOpacity 
                   onPress={() => removeLocation(index)}
-                  style={{ padding: spacing.xs }}
+                  style={styles.removeButton}
                 >
                   <Ionicons name="close-circle" size={24} color={colors.danger} />
                 </TouchableOpacity>
@@ -179,11 +230,73 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
           ))}
         </View>
       )}
-      {error && (
+
+      {(isFocused || hasSubmitted) && error && (
         <Text style={[typography.caption, { color: colors.danger }]}>
           {error}
         </Text>
       )}
     </View>
   );
-}; 
+};
+
+const styles = StyleSheet.create({
+  container: {
+    gap: spacing.sm,
+  },
+  mapContainer: {
+    height: 200,
+    marginVertical: spacing.sm,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+  permissionContainer: {
+    padding: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    backgroundColor: colors.gray[50],
+  },
+  permissionButton: {
+    backgroundColor: colors.primary,
+    padding: spacing.sm,
+    borderRadius: 8,
+  },
+  addButton: {
+    backgroundColor: colors.primary,
+    padding: spacing.sm,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addButtonDisabled: {
+    backgroundColor: colors.gray[300],
+  },
+  locationItem: {
+    backgroundColor: colors.white,
+    borderRadius: 8,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+    shadowColor: colors.shadow.color,
+    shadowOffset: colors.shadow.offset,
+    shadowOpacity: colors.shadow.opacity,
+    shadowRadius: colors.shadow.radius,
+    elevation: 3,
+  },
+  locationContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dragHandle: {
+    marginRight: spacing.sm,
+  },
+  locationInfo: {
+    flex: 1,
+  },
+  removeButton: {
+    padding: spacing.xs,
+  },
+}); 

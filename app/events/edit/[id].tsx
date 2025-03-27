@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, Stack } from 'expo-router';
 import { EventForm } from '../../components/EventForm';
 import { useEventForm } from '../../hooks/useEventForm';
 import { View, ActivityIndicator } from 'react-native';
@@ -16,6 +16,7 @@ export default function EditEventScreen() {
     handleSubmit,
     handleInputChange,
     handleDateChange,
+    handleEndDateChange,
     handleTimeChange,
     handleLocationChange,
     handleTypeChange,
@@ -23,6 +24,18 @@ export default function EditEventScreen() {
     handleTagToggle,
     handleCapacityChange,
     handleAccessControlChange,
+    handleFocus,
+    handleBlur,
+    focusedFields,
+    hasSubmitted,
+    showAlert,
+    alertConfig,
+    setShowAlert,
+    setFormData,
+    setErrors,
+    setFocusedFields,
+    setHasSubmitted,
+    handleStatusChange
   } = useEventForm(id as string);
 
   if (loading) {
@@ -34,23 +47,49 @@ export default function EditEventScreen() {
   }
 
   return (
-    <EventForm
-      formData={formData}
-      errors={errors}
-      loading={loading}
-      userLocation={userLocation}
-      locationPermissionStatus={locationPermissionStatus}
-      onSubmit={handleSubmit}
-      onInputChange={handleInputChange}
-      onDateChange={handleDateChange}
-      onTimeChange={handleTimeChange}
-      onLocationChange={handleLocationChange}
-      onTypeChange={handleTypeChange}
-      onRecurringChange={handleRecurringChange}
-      onTagToggle={handleTagToggle}
-      onCapacityChange={handleCapacityChange}
-      onAccessControlChange={handleAccessControlChange}
-      isEditing={true}
-    />
+    <>
+      <Stack.Screen 
+        options={{
+          title: 'Edit Event',
+          headerShown: true,
+          headerBackTitle: 'Back',
+          headerStyle: {
+            backgroundColor: colors.white,
+          },
+          headerTintColor: colors.primary,
+        }} 
+      />
+      <EventForm
+        formData={formData}
+        errors={errors}
+        loading={loading}
+        userLocation={userLocation}
+        locationPermissionStatus={locationPermissionStatus}
+        onSubmit={handleSubmit}
+        onInputChange={handleInputChange}
+        onDateChange={handleDateChange}
+        onEndDateChange={handleEndDateChange}
+        onTimeChange={handleTimeChange}
+        onLocationChange={handleLocationChange}
+        onTypeChange={handleTypeChange}
+        onRecurringChange={handleRecurringChange}
+        onTagToggle={handleTagToggle}
+        onCapacityChange={handleCapacityChange}
+        onAccessControlChange={handleAccessControlChange}
+        handleFocus={handleFocus}
+        handleBlur={handleBlur}
+        focusedFields={focusedFields}
+        hasSubmitted={hasSubmitted}
+        showAlert={showAlert}
+        alertConfig={alertConfig}
+        setShowAlert={setShowAlert}
+        setFormData={setFormData}
+        setErrors={setErrors}
+        setFocusedFields={setFocusedFields}
+        setHasSubmitted={setHasSubmitted}
+        isEditing={true}
+        onStatusChange={handleStatusChange}
+      />
+    </>
   );
 } 

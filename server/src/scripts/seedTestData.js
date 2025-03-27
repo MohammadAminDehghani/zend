@@ -35,7 +35,7 @@ const users = [
 const generateEvents = (creators) => {
   const events = [];
   const types = ['one-time', 'recurring'];
-  const statuses = ['open', 'verification_required'];
+  const statuses = ['public', 'private'];
   const tags = ['sports', 'technology', 'art', 'music', 'food', 'travel'];
   const repeatFrequencies = ['daily', 'weekly', 'monthly'];
   const repeatDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -90,7 +90,7 @@ const addParticipants = async (events, users) => {
     // Randomly select users and add them as participants
     for (let i = 0; i < numParticipants && i < otherUsers.length; i++) {
       const user = otherUsers[i];
-      const status = event.status === 'verification_required' ? 'pending' : 'approved';
+      const status = event.status === 'private' ? 'pending' : 'approved';
       
       event.participants.push({
         userId: user._id,

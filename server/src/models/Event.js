@@ -32,9 +32,9 @@ const eventSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'verification_required'],
+    enum: ['public', 'private'],
     required: true,
-    default: 'open'
+    default: 'public'
   },
   capacity: {
     type: Number,

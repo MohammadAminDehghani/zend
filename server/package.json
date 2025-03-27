@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "cross-env NODE_ENV=test jest --detectOpenHandles",
     "seed": "node src/scripts/seedTestData.js",
     "seed:clear": "node src/scripts/seedTestData.js --clear"
   },
@@ -28,9 +27,6 @@
     "ws": "^8.18.1"
   },
   "devDependencies": {
-    "cross-env": "^7.0.3",
-    "jest": "^29.7.0",
-    "nodemon": "^3.0.3",
-    "supertest": "^7.0.0"
+    "nodemon": "^3.0.3"
   }
 }

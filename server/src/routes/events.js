@@ -23,6 +23,72 @@ router.post('/', async (req, res) => {
       capacity
     } = req.body;
     const creator = req.user.userId;
+
+    // Validate required fields
+    if (!title || !description || !type || !locations || !startDate || !startTime || !endTime || !capacity) {
+      return res.status(400).json({ 
+        message: 'Missing required fields',
+        required: ['title', 'description', 'type', 'locations', 'startDate', 'startTime', 'endTime', 'capacity']
+      });
+    }
+
+    // Validate locations
+    if (!Array.isArray(locations) || locations.length === 0) {
+      return res.status(400).json({ message: 'At least one location is required' });
+    }
+
+    for (const location of locations) {
+      if (!location.name || typeof location.latitude !== 'number' || typeof location.longitude !== 'number') {
+        return res.status(400).json({ 
+          message: 'Each location must have a name, latitude, and longitude',
+          location
+        });
+      }
+    }
+
+    // Validate status
+    if (!['public', 'private'].includes(status)) {
+      return res.status(400).json({ message: 'Status must be either public or private' });
+    }
+
+    // Validate type and related fields
+    if (!['one-time', 'recurring'].includes(type)) {
+      return res.status(400).json({ message: 'Type must be either one-time or recurring' });
+    }
+
+    if (type === 'recurring' && (!endDate || !repeatFrequency)) {
+      return res.status(400).json({ 
+        message: 'Recurring events require endDate and repeatFrequency'
+      });
+    }
+
+    // Transform day names to 3-letter abbreviations if provided
+    let transformedRepeatDays = repeatDays;
+    if (type === 'recurring' && repeatFrequency === 'weekly' && repeatDays) {
+      const dayMap = {
+        'Monday': 'Mon',
+        'Tuesday': 'Tue',
+        'Wednesday': 'Wed',
+        'Thursday': 'Thu',
+        'Friday': 'Fri',
+        'Saturday': 'Sat',
+        'Sunday': 'Sun'
+      };
+      
+      transformedRepeatDays = repeatDays.map(day => {
+        const fullDay = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+        if (!dayMap[fullDay]) {
+          throw new Error(`Invalid day name: ${day}. Must be one of: ${Object.keys(dayMap).join(', ')}`);
+        }
+        return dayMap[fullDay];
+      });
+    }
+
+    if (type === 'recurring' && repeatFrequency === 'weekly' && (!transformedRepeatDays || transformedRepeatDays.length === 0)) {
+      return res.status(400).json({ 
+        message: 'Weekly recurring events require at least one repeatDay'
+      });
+    }
     
     const event = new Event({
       title,
@@ -35,15 +101,22 @@ router.post('/', async (req, res) => {
       startTime,
       endTime,
       repeatFrequency,
-      repeatDays,
-      tags,
-      status,
+      repeatDays: transformedRepeatDays,
+      tags: tags || [],
+      status: status || 'public',
       capacity
     });
 
     await event.save();
     res.status(201).json(event);
   } catch (error) {
+    console.error('Error creating event:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: 'Validation Error',
+        errors: Object.values(error.errors).map(err => err.message)
+      });
+    }
     res.status(500).json({ message: 'Error creating event', error: error.message });
   }
 });
@@ -258,13 +331,13 @@ router.post('/:id/join', async (req, res) => {
     const approvedParticipants = participants.filter(p => p.status === 'approved').length;
     const pendingParticipants = participants.filter(p => p.status === 'pending').length;
     
-    // For open events, check current capacity including pending
-    if (event.status === 'open' && approvedParticipants >= event.capacity) {
+    // For public events, check current capacity including pending
+    if (event.status === 'public' && approvedParticipants >= event.capacity) {
       return res.status(400).json({ message: 'Event has reached maximum capacity' });
     }
     
-    // For verification_required events, check potential capacity including pending
-    if (event.status === 'verification_required' && (approvedParticipants + pendingParticipants) >= event.capacity) {
+    // For private events, check potential capacity including pending
+    if (event.status === 'private' && (approvedParticipants + pendingParticipants) >= event.capacity) {
       return res.status(400).json({ message: 'Event has reached maximum capacity including pending requests' });
     }
 
@@ -273,7 +346,7 @@ router.post('/:id/join', async (req, res) => {
       ...participants,
       {
         userId,
-        status: event.status === 'verification_required' ? 'pending' : 'approved'
+        status: event.status === 'private' ? 'pending' : 'approved'
       }
     ];
 
