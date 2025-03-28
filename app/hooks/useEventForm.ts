@@ -5,7 +5,7 @@ import { API_URL } from '../config/api';
 import { useAuth } from '../context/auth';
 import * as Location from 'expo-location';
 import CustomAlert from '../components/CustomAlert';
-
+import { useNotificationHook } from './useNotificationHook';
 export interface EventLocation {
   name: string;
   latitude: number;
@@ -31,6 +31,7 @@ export interface EventForm {
 
 export const useEventForm = (eventId?: string) => {
   const { token, userId } = useAuth();
+  const { showImmediateNotification } = useNotificationHook();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<EventForm>({
     title: '',
@@ -63,6 +64,7 @@ export const useEventForm = (eventId?: string) => {
     message: string;
     buttons: { text: string; onPress: () => void }[];
   } | null>(null);
+  const [originalEvent, setOriginalEvent] = useState<EventForm | null>(null);
 
   useEffect(() => {
     if (eventId) {
@@ -92,6 +94,7 @@ export const useEventForm = (eventId?: string) => {
         status: data.status || 'public',
         access: data.status || 'public'
       });
+      setOriginalEvent(data);
     } catch (error) {
       Alert.alert('Error', 'Failed to load event');
     } finally {
@@ -193,88 +196,93 @@ export const useEventForm = (eventId?: string) => {
   };
 
   const handleSubmit = async () => {
-    setHasSubmitted(true);
-    const newErrors: typeof errors = {};
+    if (!validateForm()) return;
     
-    // Validate all fields
-    Object.keys(formData).forEach((field) => {
-      const error = validateField(field as keyof EventForm, formData[field as keyof EventForm]);
-      if (error) {
-        newErrors[field as keyof typeof errors] = error;
-      }
-    });
-
-    // Additional validation for time comparison
-    if (formData.startTime && formData.endTime) {
-      const startTime = new Date(`2000-01-01T${formData.startTime}`);
-      const endTime = new Date(`2000-01-01T${formData.endTime}`);
-      if (endTime <= startTime) {
-        newErrors.time = 'End time must be after start time';
-      }
-    }
-
-    // Validate locations
-    if (!formData.locations || formData.locations.length === 0) {
-      newErrors.location = 'At least one location is required';
-    }
-
-    // Validate tags
-    if (!formData.tags || formData.tags.length === 0) {
-      newErrors.tags = 'At least one tag is required';
-    } else if (formData.tags.length > 5) {
-      newErrors.tags = 'Maximum 5 tags allowed';
-    }
-    
-    setErrors(newErrors);
-
-    // If there are errors, show an alert
-    if (Object.keys(newErrors).length > 0) {
-      const errorMessages = Object.entries(newErrors)
-        .map(([field, error]) => {
-          const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
-          return `${fieldName}: ${error}`;
-        })
-        .join('\n\n');
-
-      setAlertConfig({
-        title: 'Missing Required Information',
-        message: `Please fix the following issues:\n\n${errorMessages}`,
-        buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
-      });
-      setShowAlert(true);
-      return;
-    }
-
     try {
       setLoading(true);
-      const url = eventId ? `${API_URL}/api/events/${eventId}` : `${API_URL}/api/events`;
+      const eventData = {
+        ...formData,
+        creator: userId,
+        type: formData.type
+      };
+
+      const url = eventId 
+        ? `${API_URL}/api/events/${eventId}`
+        : `${API_URL}/api/events`;
+
       const method = eventId ? 'PUT' : 'POST';
+
+      console.log('Submitting event update:', { url, method, eventData });
 
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          ...formData,
-          creator: userId
-        })
+        body: JSON.stringify(eventData),
       });
+
+      const data = await response.json();
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save event');
+        throw new Error(data.message || `Failed to ${eventId ? 'update' : 'create'} event`);
       }
 
-      router.replace('/(tabs)/manage');
-    } catch (error: unknown) {
-      setAlertConfig({
-        title: 'Error',
-        message: error instanceof Error ? error.message : 'Failed to save event',
-        buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
-      });
-      setShowAlert(true);
+      // If editing, send a notification
+      if (eventId) {
+        console.log('Event updated successfully, sending notification...');
+        try {
+          // First send a test notification to verify the system works
+          await showImmediateNotification({
+            title: 'Event Update Test',
+            body: 'This is a test notification from event update',
+            data: { eventId }
+          });
+          console.log('Test notification sent successfully');
+
+          // If we have original event data, check for changes
+          if (originalEvent) {
+            console.log('Checking for changes between:', {
+              original: originalEvent,
+              updated: formData
+            });
+            
+            const changes = detectChanges(originalEvent, formData);
+            console.log('Detected changes:', changes);
+            
+            if (changes.length > 0) {
+              const changeMessage = changes.map(change => 
+                `${change.field}: ${change.oldValue} → ${change.newValue}`
+              ).join(', ');
+              
+              await showImmediateNotification({
+                title: `Event Updated: ${formData.title}`,
+                body: `Changes made: ${changeMessage}`,
+                data: { eventId, changes }
+              });
+              console.log('Change notification sent successfully');
+            } else {
+              console.log('No changes detected, skipping change notification');
+            }
+          } else {
+            console.log('No original event data available for comparison');
+          }
+        } catch (notificationError) {
+          console.error('Error sending notification:', notificationError);
+        }
+      }
+
+      Alert.alert('Success', `Event ${eventId ? 'updated' : 'created'} successfully`, [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/(tabs)/manage'),
+        },
+      ]);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      console.error('Error in handleSubmit:', error);
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -370,6 +378,24 @@ export const useEventForm = (eventId?: string) => {
     setFormData(prev => ({ ...prev, status }));
   };
 
+  const detectChanges = (original: EventForm, updated: EventForm): { field: keyof EventForm; oldValue: any; newValue: any }[] => {
+    const changes: { field: keyof EventForm; oldValue: any; newValue: any }[] = [];
+
+    const fields = ['title', 'description', 'type', 'locations', 'startDate', 'endDate', 'startTime', 'endTime', 'repeatFrequency', 'repeatDays', 'tags', 'capacity', 'access', 'status'];
+
+    fields.forEach((field) => {
+      if (original[field as keyof EventForm] !== updated[field as keyof EventForm]) {
+        changes.push({
+          field: field as keyof EventForm,
+          oldValue: original[field as keyof EventForm],
+          newValue: updated[field as keyof EventForm]
+        });
+      }
+    });
+
+    return changes;
+  };
+
   return {
     formData,
     errors,
@@ -398,6 +424,7 @@ export const useEventForm = (eventId?: string) => {
     setFormData,
     setErrors,
     setFocusedFields,
-    setHasSubmitted
+    setHasSubmitted,
+    detectChanges
   };
 }; 

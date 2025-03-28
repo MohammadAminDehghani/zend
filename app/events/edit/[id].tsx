@@ -2,11 +2,13 @@ import React from 'react';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { EventForm } from '../../components/EventForm';
 import { useEventForm } from '../../hooks/useEventForm';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { colors, commonStyles } from '../../theme';
+import { useNotificationHook } from '../../hooks/useNotificationHook';
 
 export default function EditEventScreen() {
   const { id } = useLocalSearchParams();
+  const { testNotification } = useNotificationHook();
   const {
     formData,
     errors,
@@ -38,6 +40,15 @@ export default function EditEventScreen() {
     handleStatusChange
   } = useEventForm(id as string);
 
+  const handleTestNotification = async () => {
+    try {
+      await testNotification();
+      console.log('Test notification sent');
+    } catch (error) {
+      console.error('Error sending test notification:', error);
+    }
+  };
+
   if (loading) {
     return (
       <View style={commonStyles.loadingContainer}>
@@ -59,6 +70,12 @@ export default function EditEventScreen() {
           headerTintColor: colors.primary,
         }} 
       />
+      <TouchableOpacity 
+        style={styles.testButton}
+        onPress={handleTestNotification}
+      >
+        <Text style={styles.testButtonText}>Send Test Notification</Text>
+      </TouchableOpacity>
       <EventForm
         formData={formData}
         errors={errors}
@@ -92,4 +109,19 @@ export default function EditEventScreen() {
       />
     </>
   );
-} 
+}
+
+const styles = StyleSheet.create({
+  testButton: {
+    backgroundColor: colors.primary,
+    margin: 16,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  testButtonText: {
+    color: colors.white,
+    fontWeight: '600',
+    fontSize: 16,
+  },
+}); 
