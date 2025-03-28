@@ -4,7 +4,7 @@ import { EventForm } from '../../components/EventForm';
 import { useEventForm } from '../../hooks/useEventForm';
 import { View, ActivityIndicator, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { colors, commonStyles } from '../../theme';
-import { useNotificationHook } from '../../hooks/useNotificationHook';
+import { useNotificationHook } from '../../../hooks/useNotificationHook';
 
 export default function EditEventScreen() {
   const { id } = useLocalSearchParams();
