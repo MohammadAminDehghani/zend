@@ -136,7 +136,7 @@ const COMMON_TAGS = [
     }
   
     return (
-      <>
+      <View style={commonStyles.container} testID="event-form">
         <ScrollView ref={scrollViewRef} style={commonStyles.container}>
           <View style={{ padding: spacing.sm }}>
             {/* Header Section */}
@@ -701,6 +701,6 @@ const COMMON_TAGS = [
             buttons={alertConfig.buttons}
           />
         )}
-      </>
+      </View>
     );
   }; 

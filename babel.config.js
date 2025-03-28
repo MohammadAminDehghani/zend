@@ -7,7 +7,11 @@ module.exports = function(api) {
     ],
     plugins: [
       'react-native-reanimated/plugin',
-      '@babel/plugin-transform-runtime'
+      ['@babel/plugin-transform-runtime', {
+        helpers: true,
+        regenerator: true,
+        useESModules: true
+      }]
     ]
   };
 }; 
