@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { NotificationService } from '../../services/notifications';
-import { colors } from './../theme';
+import { colors } from '../../constants/theme';
 import { useNotificationHook } from '../../hooks/useNotificationHook';
 
 export default function NotificationsDebugScreen() {
