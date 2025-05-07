@@ -19,6 +19,7 @@ export const CapacitySelector: React.FC<CapacitySelectorProps> = ({
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
       <TouchableOpacity
+        testID="capacity-decrease"
         style={{
           backgroundColor: colors.background.primary,
           padding: spacing.sm,
@@ -47,6 +48,7 @@ export const CapacitySelector: React.FC<CapacitySelectorProps> = ({
       />
       
       <TouchableOpacity
+        testID="capacity-increase"
         style={{
           backgroundColor: colors.background.primary,
           padding: spacing.sm,

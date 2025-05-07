@@ -1,11 +1,27 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
-import AddEventScreen from '../../../app/(tabs)/add';
-import { useEventForm } from '../../../app/hooks/useEventForm';
-import { renderWithProviders, waitForStateUpdate } from '../../utils/test-utils';
+import EditEventScreen from '../../../../app/events/edit/[id]';
+import { useEventForm } from '../../../../app/hooks/useEventForm';
+import { renderWithProviders, waitForStateUpdate } from '../../../utils/test-utils';
 
 // Mock the useEventForm hook
-jest.mock('../../../app/hooks/useEventForm');
+jest.mock('../../../../app/hooks/useEventForm');
+
+// Mock the useNotificationHook
+const mockTestNotification = jest.fn();
+jest.mock('../../../../hooks/useNotificationHook', () => ({
+  useNotificationHook: () => ({
+    testNotification: mockTestNotification
+  })
+}));
+
+// Mock the useLocalSearchParams hook
+jest.mock('expo-router', () => ({
+  useLocalSearchParams: () => ({ id: 'test-event-id' }),
+  Stack: {
+    Screen: ({ children }: { children: React.ReactNode }) => <>{children}</>
+  }
+}));
 
 // Mock DateTimePicker
 jest.mock('@react-native-community/datetimepicker', () => {
@@ -27,7 +43,7 @@ jest.mock('@react-native-community/datetimepicker', () => {
   };
 });
 
-describe('AddEventScreen', () => {
+describe('EditEventScreen', () => {
   const mockHandleSubmit = jest.fn();
   const mockHandleInputChange = jest.fn();
   const mockHandleDateChange = jest.fn();
@@ -46,8 +62,8 @@ describe('AddEventScreen', () => {
     
     (useEventForm as jest.Mock).mockReturnValue({
       formData: {
-        title: '',
-        description: '',
+        title: 'Test Event',
+        description: 'Test Description',
         type: 'one-time',
         locations: [],
         startDate: new Date(),
@@ -89,32 +105,44 @@ describe('AddEventScreen', () => {
   });
 
   it('renders correctly', async () => {
-    const { getByTestId } = renderWithProviders(<AddEventScreen />);
+    const { getByText, getByPlaceholderText } = renderWithProviders(<EditEventScreen />);
     await waitForStateUpdate();
-    expect(getByTestId('add-event-screen')).toBeTruthy();
+    expect(getByText('Edit Event')).toBeTruthy();
+    expect(getByPlaceholderText('Tell us about your event...')).toBeTruthy();
+  });
+
+  it('shows loading state when loading', async () => {
+    (useEventForm as jest.Mock).mockReturnValue({
+      ...useEventForm(),
+      loading: true
+    });
+
+    const { getByTestId } = renderWithProviders(<EditEventScreen />);
+    await waitForStateUpdate();
+    expect(getByTestId('loading-indicator')).toBeTruthy();
   });
 
   describe('Basic Information', () => {
-    it('allows entering event title', async () => {
-      const { getByPlaceholderText } = renderWithProviders(<AddEventScreen />);
+    it('allows editing event title', async () => {
+      const { getByPlaceholderText } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
       const titleInput = getByPlaceholderText('Enter event title');
-      fireEvent.changeText(titleInput, 'Test Event');
-      expect(mockHandleInputChange).toHaveBeenCalledWith('title', 'Test Event');
+      fireEvent.changeText(titleInput, 'Updated Event Title');
+      expect(mockHandleInputChange).toHaveBeenCalledWith('title', 'Updated Event Title');
     });
 
-    it('allows entering event description', async () => {
-      const { getByPlaceholderText } = renderWithProviders(<AddEventScreen />);
+    it('allows editing event description', async () => {
+      const { getByPlaceholderText } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
       const descriptionInput = getByPlaceholderText('Tell us about your event...');
-      fireEvent.changeText(descriptionInput, 'Test Description');
-      expect(mockHandleInputChange).toHaveBeenCalledWith('description', 'Test Description');
+      fireEvent.changeText(descriptionInput, 'Updated Description');
+      expect(mockHandleInputChange).toHaveBeenCalledWith('description', 'Updated Description');
     });
   });
 
   describe('Date & Time', () => {
-    it('allows selecting start date', async () => {
-      const { getByText } = renderWithProviders(<AddEventScreen />);
+    it('allows editing start date', async () => {
+      const { getByText } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
       const startDateButton = getByText('Start Date');
       
@@ -127,8 +155,8 @@ describe('AddEventScreen', () => {
       });
     });
 
-    it('allows selecting end date', async () => {
-      const { getByText } = renderWithProviders(<AddEventScreen />);
+    it('allows editing end date', async () => {
+      const { getByText } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
       const endDateButton = getByText('End Date');
       
@@ -141,8 +169,8 @@ describe('AddEventScreen', () => {
       });
     });
 
-    it('allows selecting start and end time', async () => {
-      const { getByText } = renderWithProviders(<AddEventScreen />);
+    it('allows editing start and end time', async () => {
+      const { getByText } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
       const startTimeButton = getByText('Start Time');
       const endTimeButton = getByText('End Time');
@@ -167,7 +195,7 @@ describe('AddEventScreen', () => {
 
   describe('Event Type', () => {
     it('allows switching between one-time and recurring events', async () => {
-      const { getByText } = renderWithProviders(<AddEventScreen />);
+      const { getByText } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
       const recurringButton = getByText('Recurring');
       await act(async () => {
@@ -179,7 +207,7 @@ describe('AddEventScreen', () => {
 
   describe('Access Control', () => {
     it('allows switching between public and private access', async () => {
-      const { getByText } = renderWithProviders(<AddEventScreen />);
+      const { getByText } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
       const privateButton = getByText('Private');
       await act(async () => {
@@ -192,7 +220,7 @@ describe('AddEventScreen', () => {
 
   describe('Event Capacity', () => {
     it('allows changing event capacity', async () => {
-      const { getByTestId } = renderWithProviders(<AddEventScreen />);
+      const { getByTestId } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
       const increaseButton = getByTestId('capacity-increase');
       const decreaseButton = getByTestId('capacity-decrease');
@@ -209,7 +237,7 @@ describe('AddEventScreen', () => {
 
   describe('Tags', () => {
     it('allows toggling event tags', async () => {
-      const { getByText } = renderWithProviders(<AddEventScreen />);
+      const { getByText } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
       const workTag = getByText('Work');
       await act(async () => {
@@ -221,9 +249,9 @@ describe('AddEventScreen', () => {
 
   describe('Form Submission', () => {
     it('submits the form when submit button is pressed', async () => {
-      const { getByText } = renderWithProviders(<AddEventScreen />);
+      const { getByText } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
-      const submitButton = getByText('Create Event');
+      const submitButton = getByText('Update Event');
       await act(async () => {
         fireEvent.press(submitButton);
       });
@@ -236,7 +264,7 @@ describe('AddEventScreen', () => {
         loading: true
       });
       
-      const { getByTestId } = renderWithProviders(<AddEventScreen />);
+      const { getByTestId } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
       expect(getByTestId('loading-indicator')).toBeTruthy();
     });
@@ -253,10 +281,26 @@ describe('AddEventScreen', () => {
         hasSubmitted: true
       });
 
-      const { getByText } = renderWithProviders(<AddEventScreen />);
+      const { getByText } = renderWithProviders(<EditEventScreen />);
       await waitForStateUpdate();
       expect(getByText('Title is required')).toBeTruthy();
       expect(getByText('Description is required')).toBeTruthy();
+    });
+  });
+
+  describe('Test Notification', () => {
+    it('sends test notification when test button is pressed', async () => {
+      const { getByText } = renderWithProviders(<EditEventScreen />);
+      await waitForStateUpdate();
+      const testButton = getByText('Send Test Notification');
+      
+      await act(async () => {
+        fireEvent.press(testButton);
+      });
+
+      await waitFor(() => {
+        expect(mockTestNotification).toHaveBeenCalled();
+      });
     });
   });
 }); 

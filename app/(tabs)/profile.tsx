@@ -273,7 +273,7 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <View style={commonStyles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator testID="loading-indicator" size="large" color={colors.primary} />
       </View>
     );
   }
@@ -432,6 +432,7 @@ export default function ProfileScreen() {
                                   alignItems: 'center',
                                 }}
                                 onPress={() => handleDeleteImage(profile.pictures[index]._id)}
+                                testID="delete-image-button"
                               >
                                 <Text style={{ color: colors.white, fontSize: 16 }}>×</Text>
                               </TouchableOpacity>
@@ -449,6 +450,7 @@ export default function ProfileScreen() {
                             }}
                             onPress={handleImagePick}
                             disabled={isUploadingImages}
+                            testID="upload-image-button"
                           >
                             {isUploadingImages ? (
                               <ActivityIndicator size="small" color={colors.primary} />

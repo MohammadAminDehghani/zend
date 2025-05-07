@@ -52,7 +52,7 @@ export default function EditEventScreen() {
   if (loading) {
     return (
       <View style={commonStyles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator testID="loading-indicator" size="large" color={colors.primary} />
       </View>
     );
   }

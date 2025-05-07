@@ -1,10 +1,10 @@
 import React from 'react';
-import { render, act } from '@testing-library/react-native';
-import { renderHook } from '@testing-library/react-hooks';
-import { AuthProvider } from '../../app/context/auth';
+import { render, renderHook } from '@testing-library/react-native';
 import { NotificationProvider } from '../../app/context/NotificationContext';
+import { act } from '@testing-library/react-native';
 
-export const mockAuthContext = {
+// Mock AuthContext
+const mockAuthContext = {
   isAuthenticated: true,
   setIsAuthenticated: jest.fn(),
   isLoading: false,
@@ -16,6 +16,43 @@ export const mockAuthContext = {
   setToken: jest.fn(),
   logout: jest.fn()
 };
+
+// Create a mock AuthContext
+const AuthContext = React.createContext(mockAuthContext);
+
+// Create a mock AuthProvider component
+const MockAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return (
+    <AuthContext.Provider value={mockAuthContext}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Mock the auth module
+jest.mock('../../app/context/auth', () => ({
+  AuthProvider: MockAuthProvider,
+  useAuth: () => mockAuthContext
+}));
+
+// Mock AsyncStorage
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  getItem: jest.fn().mockResolvedValue(null),
+  setItem: jest.fn().mockResolvedValue(undefined),
+  removeItem: jest.fn().mockResolvedValue(undefined)
+}));
+
+// Mock jwtDecode
+jest.mock('jwt-decode', () => ({
+  jwtDecode: jest.fn().mockReturnValue({ userId: 'mock-user-id' })
+}));
+
+// Mock expo-notifications
+jest.mock('expo-notifications', () => ({
+  getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  addNotificationReceivedListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
+  addNotificationResponseReceivedListener: jest.fn().mockReturnValue({ remove: jest.fn() })
+}));
 
 export const mockNotificationContext = {
   notificationService: {
@@ -32,19 +69,32 @@ export const mockNotificationContext = {
 
 export const TestWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
-    <AuthProvider>
+    <MockAuthProvider>
       <NotificationProvider>
         {children}
       </NotificationProvider>
-    </AuthProvider>
+    </MockAuthProvider>
   );
 };
 
 export const renderWithProviders = (ui: React.ReactElement) => {
-  return render(ui, { wrapper: TestWrapper });
+  return render(
+    <MockAuthProvider>
+      <NotificationProvider>
+        {ui}
+      </NotificationProvider>
+    </MockAuthProvider>
+  );
 };
 
 // Helper function for testing hooks with providers
 export const renderHookWithProviders = (hook: any) => {
   return renderHook(hook, { wrapper: TestWrapper });
+};
+
+// Helper function to wait for state updates
+export const waitForStateUpdate = async () => {
+  await act(async () => {
+    await new Promise(resolve => setTimeout(resolve, 0));
+  });
 }; 

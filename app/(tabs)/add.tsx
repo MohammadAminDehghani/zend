@@ -37,7 +37,7 @@ export default function AddEventScreen() {
   } = useEventForm();
 
   return (
-    <View style={commonStyles.container} testID="add-event-screen">
+    <View style={commonStyles.loadingContainer} testID="add-event-screen">
       <EventForm
         formData={formData}
         errors={errors}
