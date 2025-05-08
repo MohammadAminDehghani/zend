@@ -2,14 +2,14 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, Text, ScrollView, Platform, PanResponder, Animated, ActivityIndicator } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { MapPressEvent } from 'react-native-maps';
-import { colors, typography, spacing, commonStyles } from '../app/theme';
-import Tag from './Tag';
-import { SectionHeader } from './SectionHeader';
-import { FormInput } from './FormInput';
+import { colors, typography, spacing, commonStyles } from '../../theme';
+import Tag from '../../components/Tag';
+import { SectionHeader } from '../../../components/forms/SectionHeader';
+import { FormInput } from '../../../components/forms/FormInput';
 import { LocationPicker } from './LocationPicker';
 import { DateTimePickerField } from './DateTimePickerField';
 import { CapacitySelector } from './CapacitySelector';
-import { EventForm as EventFormType, Location } from '../hooks/useEventForm';
+import { EventForm as EventFormType, EventLocation } from '../../hooks/useEventForm';
 
 // Common tags for events
 const COMMON_TAGS = [
