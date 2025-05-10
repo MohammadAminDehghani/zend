@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import SocketService from '../services/socket';
+import SocketService from '../../services/socket';
 import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
 import CustomAlert from '../components/CustomAlert';
 import { useAlert } from '../utils/alert';
@@ -637,7 +637,7 @@ export default function EventsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const isMounted = useRef(true);
-  const { token, userId } = useAuth();
+  const { token, user } = useAuth();
   const [selectedCreator, setSelectedCreator] = useState<Event['creator'] | null>(null);
   const [selectedParticipant, setSelectedParticipant] = useState<ParticipantModalProps['participant'] | null>(null);
   const { showAlert, alertConfig, show, hide } = useAlert();
@@ -786,7 +786,7 @@ export default function EventsScreen() {
   }, [deleteEvent, show, hide]);
 
   const handleJoinEvent = useCallback(async (event: Event) => {
-    if (!userId) {
+    if (!user?.id) {
       show({
         title: 'Error',
         message: 'You must be logged in to join events',
@@ -828,7 +828,7 @@ export default function EventsScreen() {
           return {
             ...e,
             participants: [...currentParticipants, {
-              userId,
+              userId: user.id,
               status: event.status === 'open' ? 'approved' : 'pending'
             }]
           };
@@ -851,10 +851,10 @@ export default function EventsScreen() {
         buttons: [{ text: 'OK', onPress: hide }]
       });
     }
-  }, [token, userId, show, hide]);
+  }, [token, user, show, hide]);
 
   const handleLeaveEvent = useCallback(async (eventId: string) => {
-    if (!userId) {
+    if (!user?.id) {
       show({
         title: 'Error',
         message: 'You must be logged in to leave events',
@@ -881,7 +881,7 @@ export default function EventsScreen() {
           const currentParticipants = e.participants || [];
           return {
             ...e,
-            participants: currentParticipants.filter(p => p.userId !== userId)
+            participants: currentParticipants.filter(p => p.userId !== user.id)
           };
         }
         return e;
@@ -900,7 +900,7 @@ export default function EventsScreen() {
         buttons: [{ text: 'OK', onPress: hide }]
       });
     }
-  }, [token, userId, show, hide]);
+  }, [token, user, show, hide]);
 
   const fetchParticipantDetails = useCallback(async (userId: string) => {
     try {
@@ -936,12 +936,12 @@ export default function EventsScreen() {
   }, [fetchParticipantDetails]);
 
   const renderParticipationButton = useCallback((event: Event) => {
-    if (event.creator.id === userId) {
+    if (event.creator.id === user?.id) {
       return null;
     }
 
     const participants = event.participants || [];
-    const userParticipation = participants.find(p => p.userId === userId);
+    const userParticipation = participants.find(p => p.userId === user?.id);
     
     if (userParticipation) {
       if (userParticipation.status === 'rejected') {
@@ -1038,7 +1038,7 @@ export default function EventsScreen() {
         </Text>
       </TouchableOpacity>
     );
-  }, [handleJoinEvent, handleLeaveEvent, userId]);
+  }, [handleJoinEvent, handleLeaveEvent, user]);
 
   const renderEvent = useCallback(({ item }: { item: Event }) => {
     if (!item || !item._id) return null;
@@ -1107,7 +1107,7 @@ export default function EventsScreen() {
                   )}
                 </View>
                 <Text style={[commonStyles.text, { flex: 1 }]}>
-                  {participant.userId === userId ? 'You' : participant.name || 'Anonymous'}
+                  {participant.userId === user?.id ? 'You' : participant.name || 'Anonymous'}
                 </Text>
                 {participant.userId === item.creator.id && (
                   <View style={{
@@ -1268,7 +1268,7 @@ export default function EventsScreen() {
           </View>
 
           {/* Participants List */}
-          {(item.status === 'open' || item.participants?.some(p => p.userId === userId && p.status === 'approved')) && renderParticipants()}
+          {(item.status === 'open' || item.participants?.some(p => p.userId === user?.id && p.status === 'approved')) && renderParticipants()}
 
           {/* Locations */}
           <View style={{ marginBottom: spacing.lg }}>
@@ -1323,7 +1323,7 @@ export default function EventsScreen() {
 
             <View style={[commonStyles.row, { justifyContent: 'flex-end', gap: spacing.sm }]}>
               {renderParticipationButton(item)}
-              {item.creator.id === userId && (
+              {item.creator.id === user?.id && (
                 <TouchableOpacity
                   style={[commonStyles.button, { 
                     backgroundColor: colors.white,
@@ -1352,7 +1352,7 @@ export default function EventsScreen() {
         </View>
       </View>
     );
-  }, [userId, handleDeleteEvent, renderParticipationButton, setSelectedCreator, setSelectedParticipant, handleParticipantPress]);
+  }, [user, handleDeleteEvent, renderParticipationButton, setSelectedCreator, setSelectedParticipant, handleParticipantPress]);
 
   const keyExtractor = useCallback((item: Event) => item._id, []);
 

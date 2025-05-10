@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { MessageBubble } from '../components/messages/MessageBubble';
 import { API_URL } from '../config/api';
-import SocketService from '../services/socket';
+import SocketService from '../../services/socket';
 import { Ionicons } from '@expo/vector-icons';
 import { Message } from '../types/message';
 import { colors, spacing, commonStyles } from '../theme';
