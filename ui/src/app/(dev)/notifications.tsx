@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { NotificationService } from '../../services/notifications';
-import { colors } from '../../constants/theme';
+import { theme } from '@/constants';
 import { useNotificationHook } from '../../hooks/useNotificationHook';
 
 export default function NotificationsDebugScreen() {
@@ -70,41 +70,41 @@ export default function NotificationsDebugScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: theme.colors.background.default,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.background.default,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: theme.colors.border,
   },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: colors.text,
+    color: theme.colors.text.primary,
   },
   clearButton: {
-    backgroundColor: colors.error,
+    backgroundColor: theme.colors.error.main,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   clearButtonText: {
-    color: colors.white,
+    color: theme.colors.background.default,
     fontWeight: '600',
   },
   testButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: theme.colors.primary.main,
     margin: 16,
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
   testButtonText: {
-    color: colors.white,
+    color: theme.colors.background.default,
     fontWeight: '600',
     fontSize: 16,
   },
@@ -114,15 +114,15 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     textAlign: 'center',
-    color: colors.textSecondary,
+    color: theme.colors.text.secondary,
     marginTop: 32,
   },
   notificationCard: {
-    backgroundColor: colors.white,
+    backgroundColor: theme.colors.background.default,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    shadowColor: colors.shadow,
+    shadowColor: theme.colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -131,21 +131,21 @@ const styles = StyleSheet.create({
   notificationTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: colors.text,
+    color: theme.colors.text.primary,
     marginBottom: 8,
   },
   notificationBody: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: theme.colors.text.secondary,
     marginBottom: 8,
   },
   notificationData: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: theme.colors.text.secondary,
     marginBottom: 8,
   },
   notificationDate: {
     fontSize: 12,
-    color: colors.textTertiary,
+    color: theme.colors.text.tertiary,
   },
 }); 

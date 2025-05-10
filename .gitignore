@@ -2,15 +2,14 @@
 
 # dependencies
 node_modules/
-
-ui/node_modules/
 server/node_modules/
+ui/node_modules/
 
 # Expo
-.expo/
-dist/
-web-build/
-expo-env.d.ts
+ui/expo/
+ui/dist/
+ui/web-build/
+ui/expo-env.d.ts
 
 # Native
 *.orig.*

@@ -7,10 +7,9 @@ import axios from 'axios';
 import { API_URL, getImageUrl } from '../config/api';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
-import { COMMON_INTERESTS } from '../constants/interests';
+import { theme } from '@/constants/theme/index';
+
+import { INTERESTS } from '@/constants';
 import Tag from '../components/Tag';
 import CustomAlert from '../components/CustomAlert';
 import { useAlert } from '../utils/alert';
@@ -32,6 +31,14 @@ interface UserProfile {
 }
 
 type Gender = 'man' | 'woman' | 'other';
+
+const styles = {
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background.default,
+  },
+  // ... other styles
+};
 
 export default function ProfileScreen() {
   const { logout, token } = useAuth();
@@ -272,14 +279,14 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <View style={commonStyles.loadingContainer}>
-        <ActivityIndicator testID="loading-indicator" size="large" color={colors.primary} />
+      <View style={theme.commonStyles.loadingContainer}>
+        <ActivityIndicator testID="loading-indicator" size="large" color={theme.colors.primary.main} />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.white }}>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background.default }}>
       {alertConfig && (
         <CustomAlert
           visible={showAlert}
@@ -296,74 +303,74 @@ export default function ProfileScreen() {
           left: 0,
           right: 0,
           zIndex: 1000,
-          backgroundColor: colors.white,
+          backgroundColor: theme.colors.background.default,
           borderBottomWidth: 1,
-          borderBottomColor: colors.gray[200],
-          padding: spacing.sm,
+          borderBottomColor: theme.colors.gray[200],
+          padding: theme.spacing.sm,
           flexDirection: 'row',
           justifyContent: 'space-between',
-          gap: spacing.sm,
+          gap: theme.spacing.sm,
         }}>
           <TouchableOpacity 
-            style={[commonStyles.button, { 
-              backgroundColor: colors.gray[100],
+            style={[theme.commonStyles.button, { 
+              backgroundColor: theme.colors.gray[100],
               flex: 1,
-              paddingVertical: spacing.xs,
-              paddingHorizontal: spacing.sm,
+              paddingVertical: theme.spacing.xs,
+              paddingHorizontal: theme.spacing.sm,
             }]}
             onPress={handleCancel}
           >
-            <Text style={[commonStyles.text, { color: colors.gray[700], fontSize: typography.fontSize.sm }]}>Cancel</Text>
+            <Text style={[theme.commonStyles.text, { color: theme.colors.gray[700], fontSize: theme.typography.fontSize.sm }]}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[commonStyles.button, { 
-              backgroundColor: colors.primary,
+            style={[theme.commonStyles.button, { 
+              backgroundColor: theme.colors.primary.main,
               flex: 1,
-              paddingVertical: spacing.xs,
-              paddingHorizontal: spacing.sm,
+              paddingVertical: theme.spacing.xs,
+              paddingHorizontal: theme.spacing.sm,
             }]}
             onPress={handleSave}
             disabled={isSaving}
           >
             {isSaving ? (
-              <ActivityIndicator size="small" color={colors.white} />
+              <ActivityIndicator size="small" color={theme.colors.white} />
             ) : (
-              <Text style={[commonStyles.text, { color: colors.white, fontSize: typography.fontSize.sm }]}>Save</Text>
+              <Text style={[theme.commonStyles.text, { color: theme.colors.white, fontSize: theme.typography.fontSize.sm }]}>Save</Text>
             )}
           </TouchableOpacity>
         </View>
       )}
 
-      <ScrollView style={[commonStyles.container, { backgroundColor: colors.white }]}>
+      <ScrollView style={[theme.commonStyles.container, { backgroundColor: theme.colors.background.default }]}>
         {/* Header Section */}
         <View style={{
-          padding: spacing.base,
-          paddingTop: spacing.xl,
+          padding: theme.spacing.base,
+          paddingTop: theme.spacing.xl,
           borderBottomWidth: 1,
-          borderBottomColor: colors.gray[200],
+          borderBottomColor: theme.colors.gray[200],
           marginTop: isEditing ? 48 : 0, // Adjusted margin for the fixed bar
         }}>
-          <View style={[commonStyles.row, { justifyContent: 'space-between', marginBottom: spacing.lg }]}>
-            <Text style={[commonStyles.title, { color: colors.gray[900] }]}>Profile</Text>
+          <View style={[theme.commonStyles.row, { justifyContent: 'space-between', marginBottom: theme.spacing.lg }]}>
+            <Text style={[theme.commonStyles.title, { color: theme.colors.gray[900] }]}>Profile</Text>
             <TouchableOpacity 
-              style={[commonStyles.button, { backgroundColor: colors.gray[100] }]}
+              style={[theme.commonStyles.button, { backgroundColor: theme.colors.gray[100] }]}
               onPress={handleLogout}
             >
-              <Ionicons name="log-out-outline" size={20} color={colors.gray[700]} />
-              <Text style={[commonStyles.text, { marginLeft: spacing.xs, color: colors.gray[700] }]}>Logout</Text>
+              <Ionicons name="log-out-outline" size={20} color={theme.colors.gray[700]} />
+              <Text style={[theme.commonStyles.text, { marginLeft: theme.spacing.xs, color: theme.colors.gray[700] }]}>Logout</Text>
             </TouchableOpacity>
           </View>
           
-          <View style={[commonStyles.row, { alignItems: 'center' }]}>
+          <View style={[theme.commonStyles.row, { alignItems: 'center' }]}>
             <View style={{
               width: 80,
               height: 80,
               borderRadius: 40,
-              backgroundColor: colors.gray[100],
-              marginRight: spacing.lg,
+              backgroundColor: theme.colors.gray[100],
+              marginRight: theme.spacing.lg,
               overflow: 'hidden',
               borderWidth: 2,
-              borderColor: colors.gray[200],
+              borderColor: theme.colors.gray[200],
             }}>
               {profile.pictures?.[0] ? (
                 <Image 
@@ -372,15 +379,15 @@ export default function ProfileScreen() {
                 />
               ) : (
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                  <Ionicons name="person" size={40} color={colors.gray[400]} />
+                  <Ionicons name="person" size={40} color={theme.colors.gray[400]} />
                 </View>
               )}
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[commonStyles.title, { color: colors.gray[900], fontSize: typography.fontSize.xl }]}>
+              <Text style={[theme.commonStyles.title, { color: theme.colors.gray[900], fontSize: theme.typography.fontSize.xl }]}>
                 {profile.name || 'Add Name'}
               </Text>
-              <Text style={[commonStyles.text, { color: colors.gray[600] }]}>
+              <Text style={[theme.commonStyles.text, { color: theme.colors.gray[600] }]}>
                 {profile.email || 'Add Email'}
               </Text>
             </View>
@@ -388,29 +395,29 @@ export default function ProfileScreen() {
         </View>
 
         {/* Main Content */}
-        <View style={{ padding: spacing.base }}>
+        <View style={{ padding: theme.spacing.base }}>
           {/* Photo Gallery */}
-          <View style={{ marginBottom: spacing.xl }}>
-            <View style={[commonStyles.row, { justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.base }]}>
-              <Text style={[commonStyles.subtitle, { color: colors.gray[900] }]}>Photo Gallery</Text>
-              <Text style={[commonStyles.textSecondary, { fontSize: typography.fontSize.sm }]}>
+          <View style={{ marginBottom: theme.spacing.xl }}>
+            <View style={[theme.commonStyles.row, { justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.base }]}>
+              <Text style={[theme.commonStyles.subtitle, { color: theme.colors.gray[900] }]}>Photo Gallery</Text>
+              <Text style={[theme.commonStyles.textSecondary, { fontSize: theme.typography.fontSize.sm }]}>
                 {profile.pictures?.length || 0}/6 photos
               </Text>
             </View>
-            <View style={{ gap: spacing.sm }}>
+            <View style={{ gap: theme.spacing.sm }}>
               {[0, 1].map((rowIndex) => (
-                <View key={rowIndex} style={[commonStyles.row, { gap: spacing.sm }]}>
+                <View key={rowIndex} style={[theme.commonStyles.row, { gap: theme.spacing.sm }]}>
                   {[0, 1, 2].map((colIndex) => {
                     const index = rowIndex * 3 + colIndex;
                     return (
                       <View key={index} style={{
                         flex: 1,
                         aspectRatio: 1,
-                        borderRadius: borderRadius.lg,
+                        borderRadius: theme.borderRadius.lg,
                         overflow: 'hidden',
-                        backgroundColor: colors.gray[100],
+                        backgroundColor: theme.colors.gray[100],
                         borderWidth: 1,
-                        borderColor: colors.gray[200],
+                        borderColor: theme.colors.gray[200],
                       }}>
                         {profile.pictures?.[index] ? (
                           <>
@@ -422,9 +429,9 @@ export default function ProfileScreen() {
                               <TouchableOpacity
                                 style={{
                                   position: 'absolute',
-                                  top: spacing.xs,
-                                  right: spacing.xs,
-                                  backgroundColor: colors.danger,
+                                  top: theme.spacing.xs,
+                                  right: theme.spacing.xs,
+                                  backgroundColor: theme.colors.danger,
                                   width: 24,
                                   height: 24,
                                   borderRadius: 12,
@@ -434,7 +441,7 @@ export default function ProfileScreen() {
                                 onPress={() => handleDeleteImage(profile.pictures[index]._id)}
                                 testID="delete-image-button"
                               >
-                                <Text style={{ color: colors.white, fontSize: 16 }}>×</Text>
+                                <Text style={{ color: theme.colors.white, fontSize: 16 }}>×</Text>
                               </TouchableOpacity>
                             )}
                           </>
@@ -445,7 +452,7 @@ export default function ProfileScreen() {
                               justifyContent: 'center',
                               alignItems: 'center',
                               borderWidth: 2,
-                              borderColor: colors.gray[300],
+                              borderColor: theme.colors.gray[300],
                               borderStyle: 'dashed',
                             }}
                             onPress={handleImagePick}
@@ -453,9 +460,9 @@ export default function ProfileScreen() {
                             testID="upload-image-button"
                           >
                             {isUploadingImages ? (
-                              <ActivityIndicator size="small" color={colors.primary} />
+                              <ActivityIndicator size="small" color={theme.colors.primary.main} />
                             ) : (
-                              <Ionicons name="add-circle-outline" size={32} color={colors.primary} />
+                              <Ionicons name="add-circle-outline" size={32} color={theme.colors.primary.main} />
                             )}
                           </TouchableOpacity>
                         )}
@@ -469,23 +476,23 @@ export default function ProfileScreen() {
 
           {/* Profile Form */}
           <View>
-            <View style={[commonStyles.row, { justifyContent: 'space-between', marginBottom: spacing.base }]}>
-              <Text style={[commonStyles.subtitle, { color: colors.gray[900] }]}>Profile Details</Text>
+            <View style={[theme.commonStyles.row, { justifyContent: 'space-between', marginBottom: theme.spacing.base }]}>
+              <Text style={[theme.commonStyles.subtitle, { color: theme.colors.gray[900] }]}>Profile Details</Text>
               {!isEditing && (
                 <TouchableOpacity 
-                  style={[commonStyles.button, { backgroundColor: colors.gray[100] }]}
+                  style={[theme.commonStyles.button, { backgroundColor: theme.colors.gray[100] }]}
                   onPress={handleEdit}
                 >
-                  <Text style={[commonStyles.text, { color: colors.primary }]}>Edit</Text>
+                  <Text style={[theme.commonStyles.text, { color: theme.colors.primary.main }]}>Edit</Text>
                 </TouchableOpacity>
               )}
             </View>
 
-            <View style={{ gap: spacing.lg }}>
+            <View style={{ gap: theme.spacing.lg }}>
               {/* Basic Information */}
               <View>
-                <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>Basic Information</Text>
-                <View style={{ gap: spacing.base }}>
+                <Text style={[theme.commonStyles.label, { marginBottom: theme.spacing.base, fontSize: theme.typography.fontSize.lg, color: theme.colors.gray[900] }]}>Basic Information</Text>
+                <View style={{ gap: theme.spacing.base }}>
                   <FormInput
                     label="Name"
                     required
@@ -521,8 +528,8 @@ export default function ProfileScreen() {
 
               {/* Gender Selection */}
               <View>
-                <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>Gender</Text>
-                <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
+                <Text style={[theme.commonStyles.label, { marginBottom: theme.spacing.base, fontSize: theme.typography.fontSize.lg, color: theme.colors.gray[900] }]}>Gender</Text>
+                <View style={[theme.commonStyles.row, { flexWrap: 'wrap', gap: theme.spacing.sm }]}>
                   {(['man', 'woman', 'other'] as Gender[]).map((gender) => (
                     <Tag
                       key={gender}
@@ -537,20 +544,20 @@ export default function ProfileScreen() {
 
               {/* Interests */}
               <View>
-                <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>Interests</Text>
-                <View style={[commonStyles.row, { flexWrap: 'wrap', gap: spacing.sm }]}>
-                  {COMMON_INTERESTS.map((interest) => (
+                <Text style={[theme.commonStyles.label, { marginBottom: theme.spacing.base, fontSize: theme.typography.fontSize.lg, color: theme.colors.gray[900] }]}>Interests</Text>
+                <View style={[theme.commonStyles.row, { flexWrap: 'wrap', gap: theme.spacing.sm }]}>
+                  {INTERESTS.map((interest) => (
                     <Tag
-                      key={interest}
-                      label={interest}
-                      isSelected={(isEditing ? tempProfile?.interests || [] : profile.interests || []).includes(interest)}
+                      key={interest.id}
+                      label={interest.label}
+                      isSelected={(isEditing ? tempProfile?.interests || [] : profile.interests || []).includes(interest.id)}
                       onPress={() => {
                         if (!isEditing) return;
                         setTempProfile(prev => prev ? {
                           ...prev,
-                          interests: (prev.interests || []).includes(interest)
-                            ? (prev.interests || []).filter(i => i !== interest)
-                            : [...(prev.interests || []), interest]
+                          interests: (prev.interests || []).includes(interest.id)
+                            ? (prev.interests || []).filter(i => i !== interest.id)
+                            : [...(prev.interests || []), interest.id]
                         } : null);
                       }}
                       disabled={!isEditing}
@@ -561,7 +568,7 @@ export default function ProfileScreen() {
 
               {/* Bio */}
               <View>
-                <Text style={[commonStyles.label, { marginBottom: spacing.base, fontSize: typography.fontSize.lg, color: colors.gray[900] }]}>About Me</Text>
+                <Text style={[theme.commonStyles.label, { marginBottom: theme.spacing.base, fontSize: theme.typography.fontSize.lg, color: theme.colors.gray[900] }]}>About Me</Text>
                 <FormInput
                   label=""
                   value={isEditing ? tempProfile?.bio || '' : profile.bio}
@@ -572,7 +579,7 @@ export default function ProfileScreen() {
                   placeholder="Tell us about yourself..."
                   maxLength={500}
                 />
-                <Text style={[commonStyles.textSecondary, { textAlign: 'right', marginTop: spacing.xs }]}>
+                <Text style={[theme.commonStyles.textSecondary, { textAlign: 'right', marginTop: theme.spacing.xs }]}>
                   {(isEditing ? tempProfile?.bio : profile.bio)?.length || 0}/500
                 </Text>
               </View>
