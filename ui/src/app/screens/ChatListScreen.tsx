@@ -10,7 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChatListItem } from '../components/messages/ChatListItem';
 import { ChatPreview } from '../types/message';
-import { useAuth } from '../context/auth';
+import { useAuth } from '../../contexts/AuthContext';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 

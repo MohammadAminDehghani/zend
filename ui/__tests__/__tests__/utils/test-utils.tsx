@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, renderHook } from '@testing-library/react-native';
-import { NotificationProvider } from '../../app/context/NotificationContext';
+import { NotificationProvider } from '../../../src/contexts/NotificationContext';
 import { act } from '@testing-library/react-native';
 
 // Mock AuthContext

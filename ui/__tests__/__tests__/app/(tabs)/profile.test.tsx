@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 import ProfileScreen from '../../../app/(tabs)/profile';
-import { useAuth } from '../../../app/context/auth';
+import { useAuth } from '../../../../src/contexts/AuthContext';
 import { renderWithProviders, waitForStateUpdate } from '../../utils/test-utils';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';

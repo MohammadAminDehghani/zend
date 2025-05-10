@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, Dimensions, Modal, Image, ScrollView, Animated } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { API_URL, getImageUrl } from '../config/api';
-import { useAuth } from '../context/auth';
+import { useAuth } from '../../contexts/AuthContext';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams, Link } from 'expo-router';

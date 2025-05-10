@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useAuth } from '../context/auth';
+import { useAuth } from '../../contexts/AuthContext';
 import { API_URL, getImageUrl } from '../config/api';
 import { ChatPreview } from '../types/message';
 import { Ionicons } from '@expo/vector-icons';

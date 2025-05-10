@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert, Image, Platform, Dimensions } from 'react-native';
-import { useAuth } from '../context/auth';
+import { useAuth } from '../../contexts/AuthContext';
 import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
 import axios from 'axios';

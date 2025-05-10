@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
 import { API_URL } from '../config/api';
-import { useAuth } from '../context/auth';
+import { useAuth } from '../../contexts/AuthContext';
 import * as Location from 'expo-location';
 import CustomAlert from '../components/CustomAlert';
 import { useNotificationHook } from '../../hooks/useNotificationHook';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { Message } from '../../types/message';
-import { useAuth } from '../../context/auth';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface MessageBubbleProps {
   message: Message;

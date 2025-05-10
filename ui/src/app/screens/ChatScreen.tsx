@@ -13,7 +13,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useAuth } from '../context/auth';
+import { useAuth } from '../../contexts/AuthContext';
 import { MessageBubble } from '../components/messages/MessageBubble';
 import { API_URL } from '../config/api';
 import SocketService from '../services/socket';
