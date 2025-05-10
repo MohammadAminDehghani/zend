@@ -4,7 +4,7 @@ import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { colors, typography, spacing, commonStyles } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { EventLocation } from '../hooks/useEventForm';
+import { EventLocation } from '../../hooks/useEventForm';
 
 interface LocationPickerProps {
   locations: EventLocation[];

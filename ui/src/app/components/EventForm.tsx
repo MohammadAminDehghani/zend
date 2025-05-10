@@ -8,7 +8,7 @@ import { FormInput } from './FormInput';
 import { LocationPicker } from './LocationPicker';
 import { DateTimePickerField } from './DateTimePickerField';
 import { CapacitySelector } from './CapacitySelector';
-import { EventForm as EventFormType, EventLocation } from '../hooks/useEventForm';
+import { EventForm as EventFormType, EventLocation } from '../../hooks/useEventForm';
 import * as Location from 'expo-location';
 import CustomAlert from './CustomAlert';
 
@@ -35,6 +35,7 @@ interface EventFormProps {
   onSubmit: () => Promise<void>;
   onInputChange: (field: keyof EventFormType, value: string) => void;
   onDateChange: (date: Date) => void;
+  onEndDateChange: (date: Date) => void;
   onTimeChange: (time: Date) => void;
   onLocationChange: (locations: EventLocation[]) => void;
   onTypeChange: (type: 'one-time' | 'recurring') => void;
@@ -64,7 +65,6 @@ interface EventFormProps {
   }>>;
   setFocusedFields: React.Dispatch<React.SetStateAction<Set<keyof EventFormType>>>;
   setHasSubmitted: React.Dispatch<React.SetStateAction<boolean>>;
-  onEndDateChange: (date: Date) => void;
   onStatusChange: (status: 'public' | 'private') => void;
 }
 
@@ -77,6 +77,7 @@ export const EventForm: React.FC<EventFormProps> = ({
   onSubmit,
   onInputChange,
   onDateChange,
+  onEndDateChange,
   onTimeChange,
   onLocationChange,
   onTypeChange,
@@ -96,7 +97,6 @@ export const EventForm: React.FC<EventFormProps> = ({
   setErrors,
   setFocusedFields,
   setHasSubmitted,
-  onEndDateChange,
   onStatusChange
 }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -647,8 +647,9 @@ export const EventForm: React.FC<EventFormProps> = ({
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           minimumDate={isEditing ? undefined : new Date()}
           onChange={(event: any, date?: Date) => {
+            setShowDatePicker(false);
             if (date) {
-              handleDateChange(date);
+              onDateChange(date);
             }
           }}
         />
@@ -661,8 +662,9 @@ export const EventForm: React.FC<EventFormProps> = ({
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           minimumDate={formData.startDate}
           onChange={(event: any, date?: Date) => {
+            setShowEndDatePicker(false);
             if (date) {
-              handleDateChange(date);
+              onEndDateChange(date);
             }
           }}
         />
@@ -674,7 +676,9 @@ export const EventForm: React.FC<EventFormProps> = ({
           mode="time"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={(event: any, date?: Date) => {
-            setShowTimePicker(null);
+            if (Platform.OS === 'android') {
+              setShowTimePicker(null);
+            }
             if (date) {
               const timeString = date.toLocaleTimeString('en-US', {
                 hour12: false,
@@ -685,6 +689,9 @@ export const EventForm: React.FC<EventFormProps> = ({
                 onInputChange('startTime', timeString);
               } else {
                 onInputChange('endTime', timeString);
+              }
+              if (Platform.OS === 'ios') {
+                setShowTimePicker(null);
               }
             }
           }}

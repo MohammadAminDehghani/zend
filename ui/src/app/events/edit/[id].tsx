@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { EventForm } from '../../components/EventForm';
-import { useEventForm } from '../../hooks/useEventForm';
+import { useEventForm } from '../../../hooks/useEventForm';
 import { View, ActivityIndicator, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { colors, commonStyles } from '../../theme';
 import { useNotificationHook } from '../../../hooks/useNotificationHook';

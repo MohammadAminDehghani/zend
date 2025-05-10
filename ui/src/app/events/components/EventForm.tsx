@@ -9,7 +9,7 @@ import { FormInput } from '../../../components/forms/FormInput';
 import { LocationPicker } from './LocationPicker';
 import { DateTimePickerField } from './DateTimePickerField';
 import { CapacitySelector } from './CapacitySelector';
-import { EventForm as EventFormType, EventLocation } from '../../hooks/useEventForm';
+import { EventForm as EventFormType, EventLocation } from '../../../hooks/useEventForm';
 
 // Common tags for events
 const COMMON_TAGS = [

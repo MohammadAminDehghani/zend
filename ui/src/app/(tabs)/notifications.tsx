@@ -14,21 +14,65 @@ export default function NotificationsDebugScreen() {
   }, []);
 
   const loadNotifications = async () => {
-    const stored = await notificationService.getStoredNotifications();
-    setNotifications(stored);
+    try {
+      const stored = await notificationService.getStoredNotifications();
+      setNotifications(stored);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    }
   };
 
   const clearNotifications = async () => {
-    await notificationService.cancelAllNotifications();
-    setNotifications([]);
+    try {
+      await notificationService.cancelAllNotifications();
+      setNotifications([]);
+    } catch (error) {
+      console.error('Error clearing notifications:', error);
+    }
   };
 
   const handleTestNotification = async () => {
     try {
       await testNotification();
-      await loadNotifications(); // Reload the list
+      await loadNotifications();
     } catch (error) {
       console.error('Error testing notification:', error);
+    }
+  };
+
+  const renderNotification = (notification: any) => {
+    try {
+      // Safely extract values with fallbacks
+      const title = typeof notification?.payload?.title === 'string' ? notification.payload.title :
+                   typeof notification?.title === 'string' ? notification.title : 'No Title';
+      
+      const body = typeof notification?.payload?.body === 'string' ? notification.payload.body :
+                  typeof notification?.body === 'string' ? notification.body :
+                  typeof notification?.message === 'string' ? notification.message : 'No Body';
+      
+      const data = notification?.payload?.data || notification?.data || {};
+      const createdAt = notification?.createdAt || notification?.timestamp || new Date().toISOString();
+
+      return (
+        <View key={notification.id} style={styles.notificationCard}>
+          <Text style={styles.notificationTitle}>{title}</Text>
+          <Text style={styles.notificationBody}>{body}</Text>
+          <Text style={styles.notificationData}>
+            Data: {Object.keys(data).length > 0 ? JSON.stringify(data, null, 2) : 'No Data'}
+          </Text>
+          <Text style={styles.notificationDate}>
+            Created: {new Date(createdAt).toLocaleString()}
+          </Text>
+        </View>
+      );
+    } catch (error) {
+      console.error('Error rendering notification:', error);
+      return (
+        <View key={notification.id} style={styles.notificationCard}>
+          <Text style={styles.notificationTitle}>Error Rendering Notification</Text>
+          <Text style={styles.notificationBody}>Failed to render notification data</Text>
+        </View>
+      );
     }
   };
 
@@ -49,18 +93,7 @@ export default function NotificationsDebugScreen() {
         {notifications.length === 0 ? (
           <Text style={styles.emptyText}>No notifications stored</Text>
         ) : (
-          notifications.map((notification) => (
-            <View key={notification.id} style={styles.notificationCard}>
-              <Text style={styles.notificationTitle}>{notification.payload.title}</Text>
-              <Text style={styles.notificationBody}>{notification.payload.body}</Text>
-              <Text style={styles.notificationData}>
-                Data: {JSON.stringify(notification.payload.data, null, 2)}
-              </Text>
-              <Text style={styles.notificationDate}>
-                Created: {new Date(notification.createdAt).toLocaleString()}
-              </Text>
-            </View>
-          ))
+          notifications.map(renderNotification)
         )}
       </ScrollView>
     </View>

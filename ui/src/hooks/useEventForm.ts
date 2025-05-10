@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
-import { API_URL } from '../config/api';
-import { useAuth } from '../../contexts/AuthContext';
+import { API_URL } from '../app/config/api';
+import { useAuth } from '../contexts/AuthContext';
 import * as Location from 'expo-location';
-import CustomAlert from '../components/CustomAlert';
-import { useNotificationHook } from '../../hooks/useNotificationHook';
+import CustomAlert from '../app/components/CustomAlert';
+import { useNotificationHook } from './useNotificationHook';
 
 export interface EventLocation {
   name: string;
@@ -198,132 +198,33 @@ export const useEventForm = (eventId?: string) => {
   };
 
   const detectChanges = (oldData: EventForm, newData: EventForm) => {
-    const changes = [];
-    
-    if (oldData.title !== newData.title) {
-      changes.push({
-        field: 'TITLE',
-        oldValue: oldData.title,
-        newValue: newData.title
-      });
-    }
-    
-    if (oldData.description !== newData.description) {
-      changes.push({
-        field: 'DESCRIPTION',
-        oldValue: oldData.description,
-        newValue: newData.description
-      });
-    }
-    
-    if (oldData.startDate.getTime() !== newData.startDate.getTime()) {
-      changes.push({
-        field: 'START_DATE',
-        oldValue: oldData.startDate.toISOString(),
-        newValue: newData.startDate.toISOString()
-      });
-    }
-    
-    if (oldData.endDate?.getTime() !== newData.endDate?.getTime()) {
-      changes.push({
-        field: 'END_DATE',
-        oldValue: oldData.endDate?.toISOString() || 'Not set',
-        newValue: newData.endDate?.toISOString() || 'Not set'
-      });
-    }
-    
-    if (oldData.startTime !== newData.startTime) {
-      changes.push({
-        field: 'START_TIME',
-        oldValue: oldData.startTime,
-        newValue: newData.startTime
-      });
-    }
-    
-    if (oldData.endTime !== newData.endTime) {
-      changes.push({
-        field: 'END_TIME',
-        oldValue: oldData.endTime,
-        newValue: newData.endTime
-      });
-    }
-    
-    if (oldData.capacity !== newData.capacity) {
-      changes.push({
-        field: 'CAPACITY',
-        oldValue: oldData.capacity.toString(),
-        newValue: newData.capacity.toString()
-      });
-    }
-    
-    if (oldData.status !== newData.status) {
-      changes.push({
-        field: 'STATUS',
-        oldValue: oldData.status,
-        newValue: newData.status
-      });
-    }
-
+    const changes: Partial<EventForm> = {};
+    Object.keys(newData).forEach(key => {
+      const field = key as keyof EventForm;
+      if (JSON.stringify(oldData[field]) !== JSON.stringify(newData[field])) {
+        changes[field] = newData[field];
+      }
+    });
     return changes;
   };
 
   const handleSubmit = async () => {
     setHasSubmitted(true);
-    const newErrors: typeof errors = {};
-    
-    // Validate all fields
-    Object.keys(formData).forEach((field) => {
-      const error = validateField(field as keyof EventForm, formData[field as keyof EventForm]);
-      if (error) {
-        newErrors[field as keyof typeof errors] = error;
-      }
-    });
-
-    // Additional validation for time comparison
-    if (formData.startTime && formData.endTime) {
-      const startTime = new Date(`2000-01-01T${formData.startTime}`);
-      const endTime = new Date(`2000-01-01T${formData.endTime}`);
-      if (endTime <= startTime) {
-        newErrors.time = 'End time must be after start time';
-      }
-    }
-
-    // Validate locations
-    if (!formData.locations || formData.locations.length === 0) {
-      newErrors.location = 'At least one location is required';
-    }
-
-    // Validate tags
-    if (!formData.tags || formData.tags.length === 0) {
-      newErrors.tags = 'At least one tag is required';
-    } else if (formData.tags.length > 5) {
-      newErrors.tags = 'Maximum 5 tags allowed';
-    }
-    
-    setErrors(newErrors);
-
-    // If there are errors, show an alert
-    if (Object.keys(newErrors).length > 0) {
-      const errorMessages = Object.entries(newErrors)
-        .map(([field, error]) => {
-          const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
-          return `${fieldName}: ${error}`;
-        })
-        .join('\n\n');
-
-      setAlertConfig({
-        title: 'Missing Required Information',
-        message: `Please fix the following issues:\n\n${errorMessages}`,
-        buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
-      });
-      setShowAlert(true);
+    if (!validateForm()) {
       return;
     }
 
     try {
       setLoading(true);
-      const url = eventId ? `${API_URL}/api/events/${eventId}` : `${API_URL}/api/events`;
+      const eventData = {
+        ...formData,
+        startDate: formData.startDate.toISOString(),
+        endDate: formData.endDate?.toISOString(),
+        creator: userId
+      };
+
       const method = eventId ? 'PUT' : 'POST';
+      const url = eventId ? `${API_URL}/api/events/${eventId}` : `${API_URL}/api/events`;
 
       const response = await fetch(url, {
         method,
@@ -331,73 +232,30 @@ export const useEventForm = (eventId?: string) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          ...formData,
-          creator: userId
-        })
+        body: JSON.stringify(eventData)
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save event');
+        throw new Error('Failed to save event');
       }
 
-      // If editing, send a notification about changes
-      if (eventId && originalEvent) {
-        try {
-          const changes = detectChanges(originalEvent, formData);
-          if (changes.length > 0) {
-            const changeMessage = changes.map(change => {
-              switch (change.field) {
-                case 'TITLE':
-                  return `Title changed to "${change.newValue}"`;
-                case 'DESCRIPTION':
-                  return 'Description updated';
-                case 'START_DATE':
-                  return `Start date moved to ${new Date(change.newValue).toLocaleDateString()}`;
-                case 'END_DATE':
-                  return change.newValue === 'Not set' 
-                    ? 'End date removed' 
-                    : `End date set to ${new Date(change.newValue).toLocaleDateString()}`;
-                case 'START_TIME':
-                  return `Start time changed to ${change.newValue}`;
-                case 'END_TIME':
-                  return `End time changed to ${change.newValue}`;
-                case 'CAPACITY':
-                  return `Capacity updated to ${change.newValue} people`;
-                case 'STATUS':
-                  return `Event is now ${change.newValue === 'public' ? 'public' : 'private'}`;
-                default:
-                  return `${change.field} updated`;
-              }
-            }).join('\n• ');
-            
-            await showImmediateNotification(
-              `✨ Event Updated: ${formData.title}`,
-              `Here's what's new:\n• ${changeMessage}`,
-              { eventId, changes }
-            );
-          }
-        } catch (notificationError) {
-          console.error('Error sending notification:', notificationError);
-        }
-      }
+      const data = await response.json();
+      showImmediateNotification(
+        'Success',
+        eventId ? 'Event updated successfully' : 'Event created successfully',
+        { type: 'success' }
+      );
 
-      router.replace('/(tabs)/manage');
-    } catch (error: unknown) {
-      setAlertConfig({
-        title: 'Error',
-        message: error instanceof Error ? error.message : 'Failed to save event',
-        buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
-      });
-      setShowAlert(true);
+      router.back();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save event');
     } finally {
       setLoading(false);
     }
   };
 
   const handleFocus = (field: string) => {
-    setFocusedFields(prev => new Set(prev).add(field as keyof EventForm));
+    setFocusedFields(prev => new Set([...prev, field as keyof EventForm]));
   };
 
   const handleBlur = (field: string) => {
@@ -414,7 +272,7 @@ export const useEventForm = (eventId?: string) => {
       const error = validateField('startDate', date);
       setErrors(prev => ({
         ...prev,
-        startDate: error
+        date: error
       }));
     }
   };
@@ -425,23 +283,37 @@ export const useEventForm = (eventId?: string) => {
       const error = validateField('endDate', date);
       setErrors(prev => ({
         ...prev,
-        endDate: error
+        date: error
       }));
     }
   };
 
   const handleTimeChange = (time: Date) => {
-    const timeString = time.toLocaleTimeString('en-US', { 
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const hours = time.getHours().toString().padStart(2, '0');
+    const minutes = time.getMinutes().toString().padStart(2, '0');
+    const timeString = `${hours}:${minutes}`;
+    
     setFormData(prev => ({ ...prev, startTime: timeString }));
     if (focusedFields.has('startTime') || hasSubmitted) {
       const error = validateField('startTime', timeString);
       setErrors(prev => ({
         ...prev,
-        startTime: error
+        time: error
+      }));
+    }
+  };
+
+  const handleEndTimeChange = (time: Date) => {
+    const hours = time.getHours().toString().padStart(2, '0');
+    const minutes = time.getMinutes().toString().padStart(2, '0');
+    const timeString = `${hours}:${minutes}`;
+    
+    setFormData(prev => ({ ...prev, endTime: timeString }));
+    if (focusedFields.has('endTime') || hasSubmitted) {
+      const error = validateField('endTime', timeString);
+      setErrors(prev => ({
+        ...prev,
+        time: error
       }));
     }
   };
@@ -466,12 +338,12 @@ export const useEventForm = (eventId?: string) => {
   };
 
   const handleTagToggle = (tag: string) => {
-    setFormData(prev => ({
-      ...prev,
-      tags: prev.tags.includes(tag)
+    setFormData(prev => {
+      const tags = prev.tags.includes(tag)
         ? prev.tags.filter(t => t !== tag)
-        : [...prev.tags, tag]
-    }));
+        : [...prev.tags, tag];
+      return { ...prev, tags };
+    });
   };
 
   const handleCapacityChange = (capacity: number) => {
@@ -492,11 +364,17 @@ export const useEventForm = (eventId?: string) => {
     loading,
     userLocation,
     locationPermissionStatus,
-    handleSubmit,
+    showAlert,
+    alertConfig,
+    setShowAlert,
     handleInputChange,
+    handleSubmit,
+    handleFocus,
+    handleBlur,
     handleDateChange,
     handleEndDateChange,
     handleTimeChange,
+    handleEndTimeChange,
     handleLocationChange,
     handleTypeChange,
     handleRecurringChange,
@@ -504,16 +382,11 @@ export const useEventForm = (eventId?: string) => {
     handleCapacityChange,
     handleAccessControlChange,
     handleStatusChange,
-    handleFocus,
-    handleBlur,
-    focusedFields,
-    hasSubmitted,
-    showAlert,
-    alertConfig,
-    setShowAlert,
     setFormData,
     setErrors,
     setFocusedFields,
-    setHasSubmitted
+    setHasSubmitted,
+    focusedFields,
+    hasSubmitted
   };
 }; 

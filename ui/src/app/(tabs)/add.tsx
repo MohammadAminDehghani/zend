@@ -1,6 +1,6 @@
 import React from 'react';
 import { EventForm } from '../components/EventForm';
-import { useEventForm } from '../hooks/useEventForm';
+import { useEventForm } from '../../hooks/useEventForm';
 import { View } from 'react-native';
 import { commonStyles } from '../theme';
 
