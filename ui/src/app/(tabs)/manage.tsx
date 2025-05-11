@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, RefreshControl, Dimensions, Modal, Image, ScrollView, Animated } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl, Dimensions, Modal, Image, ScrollView, Animated } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { API_URL, getImageUrl } from '../config/api';
 import { useAuth } from '../../contexts/AuthContext';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams, Link } from 'expo-router';
+import { router } from 'expo-router';
 import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
 import CustomAlert from '../components/CustomAlert';
 import { useAlert } from '../utils/alert';
@@ -418,7 +418,7 @@ export default function ManageScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
   const isMounted = useRef(true);
-  const { token, userId } = useAuth();
+  const { token } = useAuth();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const { showAlert, alertConfig, show, hide } = useAlert();
 
