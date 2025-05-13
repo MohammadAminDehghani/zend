@@ -1009,7 +1009,7 @@ export default function ManageScreen() {
               gap: spacing.xs,
               borderRadius: borderRadius.lg,
             }]}
-            onPress={() => router.push('/(tabs)/add')}
+            onPress={() => router.push('/events/add')}
           >
             <Ionicons name="add-circle-outline" size={14} color={colors.white} />
             <Text style={[commonStyles.text, { 
@@ -1067,7 +1067,7 @@ export default function ManageScreen() {
               alignItems: 'center',
               gap: spacing.sm,
             }]}
-            onPress={() => router.push('/(tabs)/add')}
+            onPress={() => router.push('/events/add')}
           >
             <Ionicons name="add-circle" size={20} color={colors.white} />
             <Text style={[commonStyles.buttonText]}>Create Event</Text>

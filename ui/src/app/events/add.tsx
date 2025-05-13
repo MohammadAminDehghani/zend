@@ -1,10 +1,12 @@
 import React from 'react';
 import { EventForm } from '../components/EventForm';
 import { useEventForm } from '../../hooks/useEventForm';
-import { View } from 'react-native';
-import { commonStyles } from '../theme';
+import { View, Text } from 'react-native';
+import { commonStyles, colors } from '../theme';
+import { useRouter } from 'expo-router';
 
 export default function AddEventScreen() {
+  const router = useRouter();
   const {
     formData,
     errors,
@@ -36,8 +38,13 @@ export default function AddEventScreen() {
     handleStatusChange
   } = useEventForm();
 
+  const handleCancel = () => {
+    router.back();
+  };
+
   return (
-    <View style={commonStyles.loadingContainer} testID="add-event-screen">
+    <View style={[commonStyles.loadingContainer, { backgroundColor: colors.white }]} testID="add-event-screen">
+
       <EventForm
         formData={formData}
         errors={errors}
@@ -67,6 +74,7 @@ export default function AddEventScreen() {
         setFocusedFields={setFocusedFields}
         setHasSubmitted={setHasSubmitted}
         onStatusChange={handleStatusChange}
+        onCancel={handleCancel}
       />
     </View>
   );

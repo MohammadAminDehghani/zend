@@ -66,6 +66,7 @@ interface EventFormProps {
   setFocusedFields: React.Dispatch<React.SetStateAction<Set<keyof EventFormType>>>;
   setHasSubmitted: React.Dispatch<React.SetStateAction<boolean>>;
   onStatusChange: (status: 'public' | 'private') => void;
+  onCancel: () => void;
 }
 
 export const EventForm: React.FC<EventFormProps> = ({
@@ -97,7 +98,8 @@ export const EventForm: React.FC<EventFormProps> = ({
   setErrors,
   setFocusedFields,
   setHasSubmitted,
-  onStatusChange
+  onStatusChange,
+  onCancel
 }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
@@ -128,16 +130,20 @@ export const EventForm: React.FC<EventFormProps> = ({
 
   if (loading) {
     return (
-      <View style={commonStyles.loadingContainer}>
+      <View style={[commonStyles.loadingContainer, { flex: 1 }]}>
         <ActivityIndicator testID="loading-indicator" size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <View testID="event-form">
-      <ScrollView ref={scrollViewRef} style={commonStyles.container}>
-        <View>
+    <View style={{ flex: 1, backgroundColor: colors.white }}>
+      <ScrollView 
+        ref={scrollViewRef} 
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
+      >
+        <View style={{ padding: spacing.sm }}>
           {/* Header Section */}
           <View style={{
             padding: spacing.xs,
@@ -605,36 +611,62 @@ export const EventForm: React.FC<EventFormProps> = ({
               </View>
             </View>
 
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[
-                commonStyles.button,
-                {
-                  backgroundColor: colors.primary,
-                  marginBottom: spacing.lg,
-                  paddingVertical: spacing.sm,
-                  paddingHorizontal: spacing.base,
-                }
-              ]}
-              onPress={onSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator testID="loading-indicator" color={colors.white} size="small" />
-              ) : (
+            {/* Submit and Cancel Buttons */}
+            <View style={[commonStyles.row, { gap: spacing.sm, marginBottom: spacing.lg }]}>
+              <TouchableOpacity
+                style={[
+                  commonStyles.button,
+                  {
+                    flex: 1,
+                    backgroundColor: colors.gray[200],
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.base,
+                  }
+                ]}
+                onPress={onCancel}
+              >
                 <Text style={[
                   commonStyles.text,
                   {
-                    color: colors.white,
+                    color: colors.gray[700],
                     fontSize: typography.fontSize.base,
                     fontWeight: '500',
                     textAlign: 'center',
                   }
                 ]}>
-                  {isEditing ? 'Update Event' : 'Create Event'}
+                  Cancel
                 </Text>
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  commonStyles.button,
+                  {
+                    flex: 1,
+                    backgroundColor: colors.primary,
+                    paddingVertical: spacing.sm,
+                    paddingHorizontal: spacing.base,
+                  }
+                ]}
+                onPress={onSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator testID="loading-indicator" color={colors.white} size="small" />
+                ) : (
+                  <Text style={[
+                    commonStyles.text,
+                    {
+                      color: colors.white,
+                      fontSize: typography.fontSize.base,
+                      fontWeight: '500',
+                      textAlign: 'center',
+                    }
+                  ]}>
+                    {isEditing ? 'Update Event' : 'Create Event'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </ScrollView>
