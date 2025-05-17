@@ -636,7 +636,7 @@ export default function ManageScreen() {
       <View style={{
         marginBottom: spacing.lg,
       }}>
-        <Text style={[commonStyles.subtitle, { marginBottom: spacing.base }]}>
+        <Text style={[commonStyles.subtitle, { marginBottom: spacing.sm }]}>
           Participants ({item.participants.length})
         </Text>
         {item.participants.map((participant, index) => (
@@ -716,7 +716,7 @@ export default function ManageScreen() {
                   style={{
                     paddingHorizontal: spacing.sm,
                     paddingVertical: spacing.xs,
-                    borderRadius: borderRadius.lg,
+                    borderRadius: borderRadius.sm,
                     backgroundColor: colors.primary + '10',
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -810,9 +810,9 @@ export default function ManageScreen() {
           {/* Date & Time */}
           <View style={{
             backgroundColor: colors.gray[100],
-            padding: spacing.base,
-            borderRadius: borderRadius.lg,
-            marginBottom: spacing.lg,
+            padding: spacing.sm,
+            borderRadius: borderRadius.sm,
+            marginBottom: spacing.sm,
           }}>
             <View style={[commonStyles.row, { marginBottom: spacing.xs }]}>
               <Ionicons name="calendar-outline" size={20} color={colors.gray[600]} style={{ marginRight: spacing.xs }} />
@@ -832,12 +832,12 @@ export default function ManageScreen() {
           {item.type === 'recurring' && (
             <View style={{
               backgroundColor: colors.primary + '10',
-              padding: spacing.base,
-              borderRadius: borderRadius.lg,
-              marginBottom: spacing.lg,
+              padding: spacing.sm,
+              borderRadius: borderRadius.sm,
+              marginBottom: spacing.xl,
             }}>
               <Text style={[commonStyles.text, { color: colors.primary, fontWeight: '500' }]}>
-                Repeats {item.repeatFrequency}ly
+                Repeats {item.repeatFrequency}
                 {item.repeatDays && item.repeatDays.length > 0 && 
                   ` on ${item.repeatDays.join(', ')}`}
               </Text>
@@ -902,17 +902,12 @@ export default function ManageScreen() {
           </View>
 
           {/* Footer */}
-          <View style={{ borderTopWidth: 1, borderTopColor: colors.gray[100], paddingTop: spacing.lg }}>
-            <Text style={[commonStyles.textTertiary, { marginBottom: spacing.base }]}>
-              Created {new Date(item.createdAt).toLocaleDateString()}
-            </Text>
-
             <View style={[commonStyles.row, { justifyContent: 'flex-end', gap: spacing.sm }]}>
               <TouchableOpacity
                 style={[commonStyles.button, { 
                   backgroundColor: colors.white,
                   borderWidth: 1,
-                  borderColor: colors.success,
+                  borderColor: colors.primary,
                   paddingVertical: spacing.sm,
                   paddingHorizontal: spacing.lg,
                   flexDirection: 'row',
@@ -926,9 +921,9 @@ export default function ManageScreen() {
                   });
                 }}
               >
-                <Ionicons name="pencil" size={16} color={colors.success} />
+                <Ionicons name="pencil" size={16} color={colors.primary} />
                 <Text style={[commonStyles.text, { 
-                  color: colors.success,
+                  color: colors.primary,
                   fontSize: typography.fontSize.sm,
                   fontWeight: '500'
                 }]}>
@@ -959,7 +954,7 @@ export default function ManageScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
+          
         </View>
       </View>
     );
@@ -976,7 +971,7 @@ export default function ManageScreen() {
   }
 
   return (
-    <View style={[commonStyles.container, { backgroundColor: colors.white }]}>
+    <View style={[ { backgroundColor: colors.white } ]}>
       {alertConfig && (
         <CustomAlert
           visible={showAlert}
