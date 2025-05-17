@@ -902,7 +902,7 @@ export default function ManageScreen() {
           </View>
 
           {/* Footer */}
-            <View style={[commonStyles.row, { justifyContent: 'flex-end', gap: spacing.sm }]}>
+            <View style={[commonStyles.row, { justifyContent: 'space-between', gap: spacing.sm, width: '100%' }]}>
               <TouchableOpacity
                 style={[commonStyles.button, { 
                   backgroundColor: colors.white,
@@ -912,7 +912,9 @@ export default function ManageScreen() {
                   paddingHorizontal: spacing.lg,
                   flexDirection: 'row',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: spacing.xs,
+                  flex: 1,
                 }]}
                 onPress={() => {
                   router.push({
@@ -940,7 +942,9 @@ export default function ManageScreen() {
                   paddingHorizontal: spacing.lg,
                   flexDirection: 'row',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   gap: spacing.xs,
+                  flex: 1,
                 }]}
                 onPress={() => handleDeleteEvent(item._id, item.title)}
               >
