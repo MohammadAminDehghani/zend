@@ -17,7 +17,7 @@ export const CapacitySelector: React.FC<CapacitySelectorProps> = ({
   onChange,
 }) => {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', gap: spacing.sm }}>
       <TouchableOpacity
         style={{
           backgroundColor: colors.background.primary,
@@ -25,6 +25,9 @@ export const CapacitySelector: React.FC<CapacitySelectorProps> = ({
           borderRadius: 8,
           borderWidth: 1,
           borderColor: colors.border,
+          width: '30%',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
         onPress={onDecrease}
       >
@@ -33,7 +36,7 @@ export const CapacitySelector: React.FC<CapacitySelectorProps> = ({
       
       <TextInput
         style={{
-          width: 60,
+          width: '40%',
           textAlign: 'center',
           borderWidth: 1,
           borderColor: colors.border,
@@ -53,6 +56,9 @@ export const CapacitySelector: React.FC<CapacitySelectorProps> = ({
           borderRadius: 8,
           borderWidth: 1,
           borderColor: colors.border,
+          width: '30%',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
         onPress={onIncrease}
       >

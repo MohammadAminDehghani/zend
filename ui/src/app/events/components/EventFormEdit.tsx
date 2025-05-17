@@ -148,17 +148,10 @@ export const EventFormEdit: React.FC<EventFormProps> = ({
     }
   }, [formData._id, isInitialized]);
 
-  // Debug logging
-  useEffect(() => {
-    if (isInitialized) {
-      console.log('EventFormEdit - Current formData:', JSON.stringify(formData, null, 2));
-      console.log('EventFormEdit - Current errors:', errors);
-    }
-  }, [formData, errors, isInitialized]);
 
   const handleSubmit = async () => {
     console.log('EventFormEdit - Submitting form with data:', JSON.stringify(formData, null, 2));
-    
+
     // Validate required fields
     const newErrors: typeof errors = {};
     if (!formData.title?.trim()) {
@@ -192,7 +185,6 @@ export const EventFormEdit: React.FC<EventFormProps> = ({
       }
     }
 
-    console.log('EventFormEdit - Validation errors:', newErrors);
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -265,8 +257,8 @@ export const EventFormEdit: React.FC<EventFormProps> = ({
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
-      <ScrollView 
-        ref={scrollViewRef} 
+      <ScrollView
+        ref={scrollViewRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: spacing.xl }}
       >
@@ -310,29 +302,33 @@ export const EventFormEdit: React.FC<EventFormProps> = ({
             <View style={{ marginBottom: spacing.lg }}>
               <SectionHeader title="Date & Time" />
               <View style={{ gap: spacing.sm }}>
-                <DateTimePickerField
-                  label="Start Date"
-                  value={formData.startDate}
-                  onPress={() => setShowDatePicker(true)}
-                  error={errors.startDate || errors.date}
-                  onFocus={() => handleFocus('startDate')}
-                  onBlur={() => handleBlur('startDate')}
-                  isFocused={focusedFields.has('startDate')}
-                  hasSubmitted={hasSubmitted}
-                />
 
-                <DateTimePickerField
-                  label="End Date"
-                  value={formData.endDate || formData.startDate}
-                  onPress={() => setShowEndDatePicker(true)}
-                  error={errors.endDate || errors.date}
-                  onFocus={() => handleFocus('endDate')}
-                  onBlur={() => handleBlur('endDate')}
-                  isFocused={focusedFields.has('endDate')}
-                  hasSubmitted={hasSubmitted}
-                  minimumDate={formData.startDate}
-                />
+                <View style={[commonStyles.row, { gap: spacing.sm }]}>
+                  <DateTimePickerField
+                    label="Start Date"
+                    value={formData.startDate}
+                    onPress={() => setShowDatePicker(true)}
+                    error={errors.startDate || errors.date}
+                    style={{ flex: 1 }}
+                    onFocus={() => handleFocus('startDate')}
+                    onBlur={() => handleBlur('startDate')}
+                    isFocused={focusedFields.has('startDate')}
+                    hasSubmitted={hasSubmitted}
+                  />
 
+                  <DateTimePickerField
+                    label="End Date"
+                    value={formData.endDate || formData.startDate}
+                    onPress={() => setShowEndDatePicker(true)}
+                    error={errors.endDate || errors.date}
+                    style={{ flex: 1 }}
+                    onFocus={() => handleFocus('endDate')}
+                    onBlur={() => handleBlur('endDate')}
+                    isFocused={focusedFields.has('endDate')}
+                    hasSubmitted={hasSubmitted}
+                    minimumDate={formData.startDate}
+                  />
+                </View>
                 <View style={[commonStyles.row, { gap: spacing.sm }]}>
                   <DateTimePickerField
                     label="Start Time"

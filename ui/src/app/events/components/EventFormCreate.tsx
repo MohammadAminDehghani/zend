@@ -140,8 +140,8 @@ export const EventFormCreate: React.FC<EventFormProps> = ({
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.white }}>
-      <ScrollView 
-        ref={scrollViewRef} 
+      <ScrollView
+        ref={scrollViewRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: spacing.xl }}
       >
@@ -217,29 +217,34 @@ export const EventFormCreate: React.FC<EventFormProps> = ({
             <View style={{ marginBottom: spacing.lg }}>
               <SectionHeader title="Date & Time" />
               <View style={{ gap: spacing.sm }}>
-                <DateTimePickerField
-                  label="Start Date"
-                  value={formData.startDate}
-                  onPress={() => setShowDatePicker(true)}
-                  error={errors.date}
-                  onFocus={() => handleFocus('startDate')}
-                  onBlur={() => handleBlur('startDate')}
-                  isFocused={focusedFields.has('startDate')}
-                  hasSubmitted={hasSubmitted}
-                  minimumDate={isEditing ? undefined : new Date()}
-                />
 
-                <DateTimePickerField
-                  label="End Date"
-                  value={formData.endDate || formData.startDate}
-                  onPress={() => setShowEndDatePicker(true)}
-                  error={errors.date}
-                  onFocus={() => handleFocus('endDate')}
-                  onBlur={() => handleBlur('endDate')}
-                  isFocused={focusedFields.has('endDate')}
-                  hasSubmitted={hasSubmitted}
-                  minimumDate={formData.startDate}
-                />
+                <View style={[commonStyles.row, { gap: spacing.sm }]}>
+                  <DateTimePickerField
+                    label="Start Date"
+                    value={formData.startDate}
+                    onPress={() => setShowDatePicker(true)}
+                    error={errors.date}
+                    style={{ flex: 1 }}
+                    onFocus={() => handleFocus('startDate')}
+                    onBlur={() => handleBlur('startDate')}
+                    isFocused={focusedFields.has('startDate')}
+                    hasSubmitted={hasSubmitted}
+                    minimumDate={isEditing ? undefined : new Date()}
+                  />
+
+                  <DateTimePickerField
+                    label="End Date"
+                    value={formData.endDate || formData.startDate}
+                    onPress={() => setShowEndDatePicker(true)}
+                    error={errors.date}
+                    style={{ flex: 1 }}
+                    onFocus={() => handleFocus('endDate')}
+                    onBlur={() => handleBlur('endDate')}
+                    isFocused={focusedFields.has('endDate')}
+                    hasSubmitted={hasSubmitted}
+                    minimumDate={formData.startDate}
+                  />
+                </View>
 
                 <View style={[commonStyles.row, { gap: spacing.sm }]}>
                   <DateTimePickerField
@@ -546,19 +551,21 @@ export const EventFormCreate: React.FC<EventFormProps> = ({
             </View>
 
             {/* Capacity Section */}
-            <View style={{ marginBottom: spacing.lg }}>
+            <View style={{ marginBottom: spacing.lg, width: '100%' }}>
               <SectionHeader title="Event Capacity" />
-              <CapacitySelector
-                capacity={formData.capacity}
-                onIncrease={() => onCapacityChange(Math.min(99, (formData.capacity || 10) + 1))}
-                onDecrease={() => onCapacityChange(Math.max(1, (formData.capacity || 10) - 1))}
-                onChange={(text) => {
-                  const num = parseInt(text);
-                  if (!isNaN(num) && num >= 1 && num <= 99) {
-                    onCapacityChange(num);
-                  }
-                }}
-              />
+              <View style={{ width: '100%' }}>
+                <CapacitySelector
+                  capacity={formData.capacity}
+                  onIncrease={() => onCapacityChange(Math.min(99, (formData.capacity || 10) + 1))}
+                  onDecrease={() => onCapacityChange(Math.max(1, (formData.capacity || 10) - 1))}
+                  onChange={(text) => {
+                    const num = parseInt(text);
+                    if (!isNaN(num) && num >= 1 && num <= 99) {
+                      onCapacityChange(num);
+                    }
+                  }}
+                />
+              </View>
             </View>
 
             {/* Description Section */}
