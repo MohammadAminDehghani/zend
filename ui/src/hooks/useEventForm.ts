@@ -92,7 +92,8 @@ export const useEventForm = (eventId?: string) => {
         ...data,
         startDate: new Date(data.startDate),
         endDate: data.endDate ? new Date(data.endDate) : undefined,
-        status: data.status || 'public'
+        status: data.status || 'public',
+        access: data.status || 'public'
       };
       setFormData(eventForm);
       setOriginalEvent(eventForm);
