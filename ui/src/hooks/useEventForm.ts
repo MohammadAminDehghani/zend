@@ -145,8 +145,15 @@ export const useEventForm = (eventId?: string) => {
         break;
       case 'startDate':
         if (!value) return 'Start date is required';
-        if ((!eventId || focusedFields.has('startDate')) && value < new Date()) {
-          return 'Start date cannot be in the past';
+        if ((!eventId || focusedFields.has('startDate'))) {
+          // Compare only the date part (year, month, day)
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const startDate = new Date(value);
+          startDate.setHours(0, 0, 0, 0);
+          if (startDate < today) {
+            return 'Start date cannot be in the past';
+          }
         }
         break;
       case 'startTime':
@@ -168,7 +175,22 @@ export const useEventForm = (eventId?: string) => {
     Object.keys(formData).forEach((field) => {
       const error = validateField(field as keyof EventForm, formData[field as keyof EventForm]);
       if (error) {
-        newErrors[field as keyof typeof errors] = error;
+        // Map field names to error object keys
+        switch (field) {
+          case 'locations':
+            newErrors.location = error;
+            break;
+          case 'startDate':
+          case 'endDate':
+            newErrors.date = error;
+            break;
+          case 'startTime':
+          case 'endTime':
+            newErrors.time = error;
+            break;
+          default:
+            newErrors[field as keyof typeof errors] = error;
+        }
       }
     });
 

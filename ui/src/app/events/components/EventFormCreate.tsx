@@ -28,6 +28,7 @@ interface EventFormProps {
     location?: string;
     date?: string;
     time?: string;
+    tags?: string;
   };
   loading: boolean;
   userLocation: { latitude: number; longitude: number } | null;
@@ -62,6 +63,7 @@ interface EventFormProps {
     location?: string;
     date?: string;
     time?: string;
+    tags?: string;
   }>>;
   setFocusedFields: React.Dispatch<React.SetStateAction<Set<keyof EventFormType>>>;
   setHasSubmitted: React.Dispatch<React.SetStateAction<boolean>>;
@@ -609,6 +611,11 @@ export const EventFormCreate: React.FC<EventFormProps> = ({
                   />
                 ))}
               </View>
+              {(focusedFields.has('tags') || hasSubmitted) && errors.tags && (
+                <Text style={[commonStyles.textSecondary, { color: colors.danger, marginTop: spacing.xs }]}>
+                  {errors.tags}
+                </Text>
+              )}
             </View>
 
             {/* Submit and Cancel Buttons */}
