@@ -92,8 +92,7 @@ export const useEventForm = (eventId?: string) => {
         ...data,
         startDate: new Date(data.startDate),
         endDate: data.endDate ? new Date(data.endDate) : undefined,
-        status: data.status || 'public',
-        access: data.status || 'public'
+        status: data.status || 'public'
       };
       setFormData(eventForm);
       setOriginalEvent(eventForm);
@@ -146,7 +145,9 @@ export const useEventForm = (eventId?: string) => {
         break;
       case 'startDate':
         if (!value) return 'Start date is required';
-        if (value < new Date()) return 'Start date cannot be in the past';
+        if ((!eventId || focusedFields.has('startDate')) && value < new Date()) {
+          return 'Start date cannot be in the past';
+        }
         break;
       case 'startTime':
       case 'endTime':
@@ -216,11 +217,24 @@ export const useEventForm = (eventId?: string) => {
 
     try {
       setLoading(true);
+
+      // Combine date and time
+      const startDateTime = new Date(formData.startDate);
+      const [startHours, startMinutes] = formData.startTime.split(':').map(Number);
+      startDateTime.setHours(startHours, startMinutes);
+
+      let endDateTime = undefined;
+      if (formData.endDate) {
+        endDateTime = new Date(formData.endDate);
+        const [endHours, endMinutes] = formData.endTime.split(':').map(Number);
+        endDateTime.setHours(endHours, endMinutes);
+      }
+
       const eventData = {
         ...formData,
-        startDate: formData.startDate.toISOString(),
-        endDate: formData.endDate?.toISOString(),
-        creator: userId
+        startDate: startDateTime.toISOString(),
+        endDate: endDateTime?.toISOString(),
+        creator: userId,
       };
 
       const method = eventId ? 'PUT' : 'POST';
@@ -236,7 +250,8 @@ export const useEventForm = (eventId?: string) => {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save event');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to save event');
       }
 
       const data = await response.json();
@@ -248,7 +263,8 @@ export const useEventForm = (eventId?: string) => {
 
       router.back();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save event');
+      console.error('Error saving event:', error);
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to save event');
     } finally {
       setLoading(false);
     }
@@ -350,12 +366,12 @@ export const useEventForm = (eventId?: string) => {
     setFormData(prev => ({ ...prev, capacity }));
   };
 
-  const handleAccessControlChange = (access: 'public' | 'private') => {
-    setFormData(prev => ({ ...prev, access }));
-  };
-
   const handleStatusChange = (status: 'public' | 'private') => {
     setFormData(prev => ({ ...prev, status }));
+  };
+
+  const handleAccessControlChange = (access: 'public' | 'private') => {
+    setFormData(prev => ({ ...prev, access }));
   };
 
   return {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { EventForm } from '../components/EventForm';
+import { EventFormCreate } from './components/EventFormCreate';
 import { useEventForm } from '../../hooks/useEventForm';
 import { View, Text } from 'react-native';
 import { commonStyles, colors } from '../theme';
@@ -45,7 +45,7 @@ export default function AddEventScreen() {
   return (
     <View style={[commonStyles.loadingContainer, { backgroundColor: colors.white }]} testID="add-event-screen">
 
-      <EventForm
+      <EventFormCreate
         formData={formData}
         errors={errors}
         loading={loading}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
-import { EventForm } from '../../components/EventForm';
+import { EventFormEdit } from '../components/EventFormEdit';
 import { useEventForm } from '../../../hooks/useEventForm';
 import { View, ActivityIndicator, SafeAreaView } from 'react-native';
 import { colors, commonStyles } from '../../theme';
@@ -67,7 +67,7 @@ export default function EditEventScreen() {
                 }}
             />
             <View style={{ flex: 1, backgroundColor: colors.white }}>
-                <EventForm
+                <EventFormEdit
                     formData={formData}
                     errors={errors}
                     loading={loading}
