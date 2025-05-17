@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text } from 'react-native';
-import { colors, typography, spacing, commonStyles } from '../theme';
+import { colors, typography, spacing, commonStyles, borderRadius } from '../theme';
 
 interface TagProps {
   label: string;
@@ -8,9 +8,10 @@ interface TagProps {
   onPress?: () => void;
   disabled?: boolean;
   style?: any;
+  marginRight?: number;
 }
 
-export default function Tag({ label, isSelected, onPress, disabled, style }: TagProps) {
+export default function Tag({ label, isSelected, onPress, disabled, style, marginRight = spacing.xs }: TagProps) {
   return (
     <TouchableOpacity
       style={[
@@ -20,9 +21,10 @@ export default function Tag({ label, isSelected, onPress, disabled, style }: Tag
           borderWidth: isSelected ? 0 : 1,
           borderStyle: 'dashed',
           borderColor: colors.primary,
-          borderRadius: spacing.xs,
-          paddingHorizontal: spacing.base,
-          paddingVertical: spacing.sm,
+          borderRadius: borderRadius.sm,
+          paddingHorizontal: spacing.sm,
+          paddingVertical: spacing.xs,
+          marginRight,
         },
         disabled && commonStyles.buttonDisabled,
         style
@@ -34,7 +36,7 @@ export default function Tag({ label, isSelected, onPress, disabled, style }: Tag
         commonStyles.tagText,
         { 
           color: isSelected ? colors.white : colors.gray[700],
-          fontSize: typography.fontSize.base,
+          fontSize: typography.fontSize.sm,
         }
       ]}>
         {label}

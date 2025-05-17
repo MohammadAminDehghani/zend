@@ -1007,7 +1007,7 @@ export default function ManageScreen() {
               flexDirection: 'row',
               alignItems: 'center',
               gap: spacing.xs,
-              borderRadius: borderRadius.lg,
+              borderRadius: borderRadius.sm,
             }]}
             onPress={() => router.push('/events/add')}
           >
