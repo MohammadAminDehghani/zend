@@ -94,7 +94,7 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
   const { user } = useAuth();
   const socketService = SocketService.getInstance();
   const { showAlert, alertConfig, show, hide } = useAlert();
-  
+
   useEffect(() => {
     if (visible) {
       Animated.spring(slideAnim, {
@@ -166,7 +166,7 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
         <View style={{
           width: '100%',
           aspectRatio: 1,
-          backgroundColor: colors.gray[100],
+          backgroundColor: colors.gray[200],
           justifyContent: 'center',
           alignItems: 'center',
         }}>
@@ -194,7 +194,7 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
           renderItem={({ item }) => {
             const imageUrl = item.url ? getImageUrl(item.url) : null;
             const imageSource = imageUrl ? { uri: imageUrl } : undefined;
-            
+
             return (
               <View style={{ width: imageSize, aspectRatio: 1 }}>
                 <Image
@@ -236,7 +236,7 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity 
+      <TouchableOpacity
         style={{ flex: 1 }}
         activeOpacity={1}
         onPress={onClose}
@@ -247,7 +247,7 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
             backgroundColor: 'rgba(0, 0, 0, 0.3)',
             justifyContent: 'flex-end',
           }}>
-            <TouchableOpacity 
+            <TouchableOpacity
               activeOpacity={1}
               onPress={(e) => e.stopPropagation()}
             >
@@ -282,7 +282,7 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
                     zIndex: 1,
                   }}
                 />
-                
+
                 <View style={{
                   flexDirection: 'row',
                   justifyContent: 'space-between',
@@ -298,7 +298,7 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
                       width: 32,
                       height: 32,
                       borderRadius: 16,
-                      backgroundColor: colors.gray[100],
+                      backgroundColor: colors.gray[200],
                       justifyContent: 'center',
                       alignItems: 'center',
                     }}
@@ -310,13 +310,13 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
 
                 <ScrollView>
                   {renderCreatorPhotos()}
-                  
+
                   <View style={{ padding: spacing.lg }}>
-                    <View style={{ 
-                      flexDirection: 'row', 
+                    <View style={{
+                      flexDirection: 'row',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      marginBottom: spacing.lg 
+                      marginBottom: spacing.lg
                     }}>
                       <View>
                         <Text style={[commonStyles.title, { marginBottom: spacing.xs }]}>{creator.name}</Text>
@@ -330,12 +330,12 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
                           flexDirection: 'row',
                           alignItems: 'center',
                           gap: spacing.xs,
-                          borderRadius: borderRadius.lg,
+                          borderRadius: borderRadius.sm,
                         }]}
                         onPress={handleSendMessage}
                       >
                         <Ionicons name="chatbubble-outline" size={14} color={colors.primary} />
-                        <Text style={[commonStyles.text, { 
+                        <Text style={[commonStyles.text, {
                           color: colors.primary,
                           fontSize: typography.fontSize.xs,
                           fontWeight: '500'
@@ -397,7 +397,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ visible, participan
   const slideAnim = useRef(new Animated.Value(0)).current;
   const [activeSlide, setActiveSlide] = useState(0);
   const flatListRef = useRef<FlatList>(null);
-  
+
   useEffect(() => {
     if (visible) {
       Animated.spring(slideAnim, {
@@ -447,7 +447,8 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ visible, participan
         <View style={{
           width: '100%',
           aspectRatio: 1,
-          backgroundColor: colors.gray[100],
+          borderWidth: 1,
+          borderColor: colors.gray[200],
           justifyContent: 'center',
           alignItems: 'center',
         }}>
@@ -475,7 +476,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ visible, participan
           renderItem={({ item }) => {
             const imageUrl = getImageUrl(item.url);
             const imageSource = imageUrl ? { uri: imageUrl } : undefined;
-            
+
             return (
               <View style={{ width: imageSize, aspectRatio: 1 }}>
                 <Image
@@ -502,7 +503,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ visible, participan
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity 
+      <TouchableOpacity
         style={{ flex: 1 }}
         activeOpacity={1}
         onPress={onClose}
@@ -513,7 +514,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ visible, participan
             backgroundColor: 'rgba(0, 0, 0, 0.3)',
             justifyContent: 'flex-end',
           }}>
-            <TouchableOpacity 
+            <TouchableOpacity
               activeOpacity={1}
               onPress={(e) => e.stopPropagation()}
             >
@@ -548,7 +549,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ visible, participan
                     zIndex: 1,
                   }}
                 />
-                
+
                 <View style={{
                   flexDirection: 'row',
                   justifyContent: 'space-between',
@@ -564,7 +565,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ visible, participan
                       width: 32,
                       height: 32,
                       borderRadius: 16,
-                      backgroundColor: colors.gray[100],
+                      backgroundColor: colors.gray[200],
                       justifyContent: 'center',
                       alignItems: 'center',
                     }}
@@ -576,7 +577,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ visible, participan
 
                 <ScrollView>
                   {renderParticipantPhotos()}
-                  
+
                   <View style={{ padding: spacing.lg }}>
                     <View style={{ marginBottom: spacing.lg }}>
                       <Text style={[commonStyles.title, { marginBottom: spacing.xs }]}>{participant.name}</Text>
@@ -644,7 +645,7 @@ export default function EventsScreen() {
 
   const fetchEvents = useCallback(async () => {
     const controller = new AbortController();
-    
+
     try {
       const response = await fetch(`${API_URL}/api/events`, {
         headers: {
@@ -652,12 +653,12 @@ export default function EventsScreen() {
         },
         signal: controller.signal
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
       const data = await response.json();
-      
+
       // Fetch participant details for each event
       const eventsWithParticipantDetails = await Promise.all(
         data.map(async (event: Event) => {
@@ -669,7 +670,7 @@ export default function EventsScreen() {
                     'Authorization': `Bearer ${token}`
                   }
                 });
-                
+
                 if (response.ok) {
                   const details = await response.json();
                   return {
@@ -684,7 +685,7 @@ export default function EventsScreen() {
               return participant;
             })
           );
-          
+
           return {
             ...event,
             participants: participantsWithDetails
@@ -838,8 +839,8 @@ export default function EventsScreen() {
 
       show({
         title: 'Success',
-        message: event.status === 'open' 
-          ? 'You have successfully joined the event!' 
+        message: event.status === 'open'
+          ? 'You have successfully joined the event!'
           : 'Your join request has been submitted and is pending approval',
         buttons: [{ text: 'OK', onPress: hide }]
       });
@@ -909,11 +910,11 @@ export default function EventsScreen() {
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch participant details');
       }
-      
+
       const data = await response.json();
       return data;
     } catch (error) {
@@ -928,7 +929,7 @@ export default function EventsScreen() {
       setSelectedParticipant(details);
       setEvents(prevEvents => prevEvents.map(event => ({
         ...event,
-        participants: event.participants.map(p => 
+        participants: event.participants.map(p =>
           p.userId === participant.userId ? { ...p, name: details.name } : p
         )
       })));
@@ -942,21 +943,21 @@ export default function EventsScreen() {
 
     const participants = event.participants || [];
     const userParticipation = participants.find(p => p.userId === user?.id);
-    
+
     if (userParticipation) {
       if (userParticipation.status === 'rejected') {
         return (
-          <View style={[commonStyles.button, { 
+          <View style={[commonStyles.button, {
             backgroundColor: colors.danger + '10',
             paddingVertical: spacing.xs,
             paddingHorizontal: spacing.sm,
             flexDirection: 'row',
             alignItems: 'center',
             gap: spacing.xs,
-            borderRadius: borderRadius.lg,
+            borderRadius: borderRadius.sm,
           }]}>
             <Ionicons name="close-circle" size={14} color={colors.danger} />
-            <Text style={[commonStyles.text, { 
+            <Text style={[commonStyles.text, {
               color: colors.danger,
               fontSize: typography.fontSize.xs,
               fontWeight: '500'
@@ -966,20 +967,20 @@ export default function EventsScreen() {
           </View>
         );
       }
-      
+
       if (userParticipation.status === 'approved') {
         return (
-          <View style={[commonStyles.button, { 
+          <View style={[commonStyles.button, {
             backgroundColor: colors.success + '10',
             paddingVertical: spacing.xs,
             paddingHorizontal: spacing.sm,
             flexDirection: 'row',
             alignItems: 'center',
             gap: spacing.xs,
-            borderRadius: borderRadius.lg,
+            borderRadius: borderRadius.sm,
           }]}>
             <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-            <Text style={[commonStyles.text, { 
+            <Text style={[commonStyles.text, {
               color: colors.success,
               fontSize: typography.fontSize.xs,
               fontWeight: '500'
@@ -992,19 +993,19 @@ export default function EventsScreen() {
 
       return (
         <TouchableOpacity
-          style={[commonStyles.button, { 
+          style={[commonStyles.button, {
             backgroundColor: colors.warning + '10',
             paddingVertical: spacing.xs,
             paddingHorizontal: spacing.sm,
             flexDirection: 'row',
             alignItems: 'center',
             gap: spacing.xs,
-            borderRadius: borderRadius.lg,
+            borderRadius: borderRadius.sm,
           }]}
           onPress={() => handleLeaveEvent(event._id)}
         >
           <Ionicons name="exit" size={14} color={colors.warning} />
-          <Text style={[commonStyles.text, { 
+          <Text style={[commonStyles.text, {
             color: colors.warning,
             fontSize: typography.fontSize.xs,
             fontWeight: '500'
@@ -1017,19 +1018,19 @@ export default function EventsScreen() {
 
     return (
       <TouchableOpacity
-        style={[commonStyles.button, { 
+        style={[commonStyles.button, {
           backgroundColor: colors.primary + '10',
           paddingVertical: spacing.xs,
           paddingHorizontal: spacing.sm,
           flexDirection: 'row',
           alignItems: 'center',
           gap: spacing.xs,
-          borderRadius: borderRadius.lg,
+          borderRadius: borderRadius.sm,
         }]}
         onPress={() => handleJoinEvent(event)}
       >
         <Ionicons name="enter" size={14} color={colors.primary} />
-        <Text style={[commonStyles.text, { 
+        <Text style={[commonStyles.text, {
           color: colors.primary,
           fontSize: typography.fontSize.xs,
           fontWeight: '500'
@@ -1042,7 +1043,7 @@ export default function EventsScreen() {
 
   const renderEvent = useCallback(({ item }: { item: Event }) => {
     if (!item || !item._id) return null;
-    
+
     const formatDate = (dateString: string) => {
       return new Date(dateString).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -1062,7 +1063,7 @@ export default function EventsScreen() {
     const renderParticipants = () => {
       const participants = item.participants || [];
       const approvedParticipants = participants.filter(p => p.status === 'approved');
-      
+
       if (approvedParticipants.length === 0) return null;
 
       return (
@@ -1073,15 +1074,15 @@ export default function EventsScreen() {
               {approvedParticipants.length}/{item.capacity}
             </Text>
           </View>
-          
+
           <View style={{ gap: spacing.sm }}>
             {approvedParticipants.map((participant, index) => (
               <TouchableOpacity
                 key={index}
-                style={[commonStyles.row, { 
-                  backgroundColor: colors.gray[100],
+                style={[commonStyles.row, {
+
                   padding: spacing.sm,
-                  borderRadius: borderRadius.lg,
+                  borderRadius: borderRadius.sm,
                   alignItems: 'center'
                 }]}
                 onPress={() => handleParticipantPress(participant)}
@@ -1090,7 +1091,7 @@ export default function EventsScreen() {
                   width: 32,
                   height: 32,
                   borderRadius: 16,
-                  backgroundColor: colors.gray[100],
+                  backgroundColor: colors.gray[200],
                   justifyContent: 'center',
                   alignItems: 'center',
                   marginRight: spacing.sm,
@@ -1114,9 +1115,9 @@ export default function EventsScreen() {
                     backgroundColor: colors.primary + '10',
                     paddingHorizontal: spacing.sm,
                     paddingVertical: spacing.xs,
-                    borderRadius: borderRadius.lg,
+                    borderRadius: borderRadius.sm,
                   }}>
-                    <Text style={[commonStyles.text, { 
+                    <Text style={[commonStyles.text, {
                       color: colors.primary,
                       fontSize: typography.fontSize.xs,
                       fontWeight: '500'
@@ -1133,15 +1134,23 @@ export default function EventsScreen() {
     };
 
     return (
-      <View style={{ 
+      <View style={{
         backgroundColor: colors.white,
         borderBottomWidth: 1,
         borderBottomColor: colors.gray[200],
       }}>
-        <View style={{ padding: spacing.sm }}>
+        <View style={{ padding: spacing.sm, marginBottom: spacing['2xl'] }}>
           {/* Header Section */}
           <View style={{ marginBottom: spacing.lg }}>
-            <TouchableOpacity 
+            <Text style={[commonStyles.subtitle, {
+              fontSize: typography.fontSize.xl,
+              marginBottom: spacing.xs,
+              color: colors.gray[700]
+            }]}>
+              {item.title}
+            </Text>
+
+            <TouchableOpacity
               style={[commonStyles.row, { alignItems: 'center', marginBottom: spacing.sm }]}
               onPress={() => setSelectedCreator(item.creator)}
             >
@@ -1149,7 +1158,7 @@ export default function EventsScreen() {
                 width: 32,
                 height: 32,
                 borderRadius: 16,
-                backgroundColor: colors.gray[100],
+                backgroundColor: colors.gray[200],
                 justifyContent: 'center',
                 alignItems: 'center',
                 marginRight: spacing.sm,
@@ -1170,20 +1179,6 @@ export default function EventsScreen() {
               </Text>
             </TouchableOpacity>
 
-            <Text style={[commonStyles.subtitle, { 
-              fontSize: typography.fontSize.xl,
-              marginBottom: spacing.xs,
-              color: colors.gray[900]
-            }]}>
-              {item.title}
-            </Text>
-            <Text style={[commonStyles.text, { 
-              color: colors.gray[600],
-              marginBottom: spacing.base,
-              lineHeight: typography.lineHeight.relaxed
-            }]}>
-              {item.description}
-            </Text>
 
             {/* Tags */}
             {item.tags && item.tags.length > 0 && (
@@ -1197,9 +1192,10 @@ export default function EventsScreen() {
 
           {/* Date & Time */}
           <View style={{
-            backgroundColor: colors.gray[100],
+            borderWidth: 1,
+            borderColor: colors.gray[200],
             padding: spacing.base,
-            borderRadius: borderRadius.lg,
+            borderRadius: borderRadius.sm,
             marginBottom: spacing.lg,
           }}>
             <View style={[commonStyles.row, { marginBottom: spacing.xs }]}>
@@ -1219,18 +1215,19 @@ export default function EventsScreen() {
           {/* Recurring Info */}
           {item.type === 'recurring' && (
             <View style={{
-              backgroundColor: colors.primary + '10',
+              borderWidth: 1,
+              borderColor: colors.primary[200],
               padding: spacing.base,
-              borderRadius: borderRadius.lg,
+              borderRadius: borderRadius.sm,
               marginBottom: spacing.lg,
             }}>
               <Text style={[commonStyles.text, { color: colors.primary, fontWeight: '500' }]}>
                 Repeats {item.repeatFrequency}ly
-                {item.repeatDays && item.repeatDays.length > 0 && 
+                {item.repeatDays && item.repeatDays.length > 0 &&
                   ` on ${item.repeatDays.join(', ')}`}
               </Text>
               {item.endDate && (
-                <Text style={[commonStyles.textSecondary, { 
+                <Text style={[commonStyles.textSecondary, {
                   fontSize: typography.fontSize.sm,
                   marginTop: spacing.xs,
                   color: colors.primary + '99'
@@ -1243,32 +1240,31 @@ export default function EventsScreen() {
 
           {/* Event Status */}
           <View style={{
-            backgroundColor: colors.gray[100],
+            borderWidth: 1,
+            borderColor: colors.gray[200],
             padding: spacing.base,
-            borderRadius: borderRadius.lg,
+            borderRadius: borderRadius.sm,
             marginBottom: spacing.lg,
           }}>
-            <View style={[commonStyles.row, { justifyContent: 'space-between', marginBottom: spacing.xs }]}>
+            <View style={[ { justifyContent: 'space-between', marginBottom: spacing.xs }]}>
               <View style={[commonStyles.row, { alignItems: 'center' }]}>
                 <Ionicons name="people-outline" size={20} color={colors.gray[600]} style={{ marginRight: spacing.xs }} />
-                <Text style={[commonStyles.text, { color: colors.gray[600] }]}>
+                <Text style={[commonStyles.text, { color: colors.gray[600], fontWeight: '500', marginLeft: spacing.xs }]}>
                   {item.participants?.filter(p => p.status === 'approved').length || 0} / {item.capacity} participants
                 </Text>
               </View>
               <View style={[commonStyles.row, { alignItems: 'center' }]}>
                 <Ionicons name="shield-outline" size={20} color={colors.gray[600]} style={{ marginRight: spacing.xs }} />
-                <Text style={[commonStyles.text, { 
+                <Text style={[commonStyles.text, {
                   color: item.status === 'open' ? colors.success : colors.warning,
-                  fontWeight: '500'
+                  fontWeight: '500',
+                  marginLeft: spacing.xs
                 }]}>
                   {item.status === 'open' ? 'Open' : 'Verification Required'}
                 </Text>
               </View>
             </View>
           </View>
-
-          {/* Participants List */}
-          {(item.status === 'open' || item.participants?.some(p => p.userId === user?.id && p.status === 'approved')) && renderParticipants()}
 
           {/* Locations */}
           <View style={{ marginBottom: spacing.lg }}>
@@ -1277,16 +1273,16 @@ export default function EventsScreen() {
             </Text>
             {item.locations.map((location, index) => (
               <View key={index} style={{ marginBottom: index < item.locations.length - 1 ? spacing.base : 0 }}>
-                <Text style={[commonStyles.text, { 
+                <Text style={[commonStyles.text, {
                   fontWeight: '500',
                   marginBottom: spacing.xs,
                   color: colors.gray[900]
                 }]}>
                   📍 {location.name}
                 </Text>
-                <View style={{ 
+                <View style={{
                   height: 120,
-                  borderRadius: borderRadius.lg,
+                  borderRadius: borderRadius.sm,
                   overflow: 'hidden',
                   borderWidth: 1,
                   borderColor: colors.gray[200],
@@ -1315,8 +1311,19 @@ export default function EventsScreen() {
             ))}
           </View>
 
+          <Text style={[commonStyles.text, {
+            color: colors.gray[600],
+            marginBottom: spacing.base,
+            lineHeight: typography.lineHeight.relaxed
+          }]}>
+            {item.description}
+          </Text>
+
+          {/* Participants List */}
+          {(item.status === 'open' || item.participants?.some(p => p.userId === user?.id && p.status === 'approved')) && renderParticipants()}
+
           {/* Footer */}
-          <View style={{ borderTopWidth: 1, borderTopColor: colors.gray[100], paddingTop: spacing.lg }}>
+          <View style={{ borderTopWidth: 1, borderTopColor: colors.gray[200], paddingTop: spacing.lg }}>
             <Text style={[commonStyles.textTertiary, { marginBottom: spacing.base }]}>
               Created {new Date(item.createdAt).toLocaleDateString()}
             </Text>
@@ -1325,7 +1332,7 @@ export default function EventsScreen() {
               {renderParticipationButton(item)}
               {item.creator.id === user?.id && (
                 <TouchableOpacity
-                  style={[commonStyles.button, { 
+                  style={[commonStyles.button, {
                     backgroundColor: colors.white,
                     borderWidth: 1,
                     borderColor: colors.danger,
@@ -1338,7 +1345,7 @@ export default function EventsScreen() {
                   onPress={() => handleDeleteEvent(item._id, item.title)}
                 >
                   <Ionicons name="trash" size={16} color={colors.danger} />
-                  <Text style={[commonStyles.text, { 
+                  <Text style={[commonStyles.text, {
                     color: colors.danger,
                     fontSize: typography.fontSize.sm,
                     fontWeight: '500'
@@ -1381,19 +1388,19 @@ export default function EventsScreen() {
         borderBottomWidth: 1,
         borderBottomColor: colors.gray[200],
         paddingHorizontal: spacing.sm,
-        paddingTop: spacing.xl,
-        paddingBottom: spacing.lg,
+        paddingTop: spacing.sm,
+        paddingBottom: spacing.sm,
       }}>
         <Text style={[commonStyles.title, { color: colors.gray[900], marginBottom: 0 }]}>
           Explore Events
         </Text>
       </View>
-      
+
       {/* Content */}
       {events.length === 0 ? (
-        <View style={{ 
-          flex: 1, 
-          justifyContent: 'center', 
+        <View style={{
+          flex: 1,
+          justifyContent: 'center',
           alignItems: 'center',
           paddingHorizontal: spacing.base,
           backgroundColor: colors.white,
@@ -1402,21 +1409,21 @@ export default function EventsScreen() {
             width: 80,
             height: 80,
             borderRadius: 40,
-            backgroundColor: colors.gray[100],
+            backgroundColor: colors.gray[200],
             justifyContent: 'center',
             alignItems: 'center',
             marginBottom: spacing.lg,
           }}>
             <Ionicons name="compass-outline" size={40} color={colors.gray[400]} />
           </View>
-          <Text style={[commonStyles.subtitle, { 
+          <Text style={[commonStyles.subtitle, {
             color: colors.gray[900],
             marginBottom: spacing.sm,
             textAlign: 'center'
           }]}>
             No Events Found
           </Text>
-          <Text style={[commonStyles.text, { 
+          <Text style={[commonStyles.text, {
             color: colors.gray[600],
             marginBottom: spacing.xl,
             textAlign: 'center',
@@ -1431,7 +1438,7 @@ export default function EventsScreen() {
           data={events}
           renderItem={renderEvent}
           keyExtractor={keyExtractor}
-          contentContainerStyle={{ 
+          contentContainerStyle={{
             backgroundColor: colors.white,
           }}
           showsVerticalScrollIndicator={false}
@@ -1445,7 +1452,7 @@ export default function EventsScreen() {
           }
         />
       )}
-      
+
       <CreatorModal
         visible={!!selectedCreator}
         creator={selectedCreator!}
