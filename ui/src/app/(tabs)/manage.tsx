@@ -1039,6 +1039,7 @@ export default function ManageScreen() {
           alignItems: 'center',
           paddingHorizontal: spacing.xl,
           backgroundColor: colors.white,
+          minHeight: Dimensions.get('window').height - 200,
         }}>
           <View style={{
             width: 80,
@@ -1054,18 +1055,19 @@ export default function ManageScreen() {
           <Text style={[commonStyles.subtitle, { 
             color: colors.gray[900],
             marginBottom: spacing.sm,
-            textAlign: 'center'
+            textAlign: 'center',
+            fontSize: typography.fontSize.xl,
           }]}>
             No Events Yet
           </Text>
           <Text style={[commonStyles.text, { 
-            color: colors.gray[600],
-            marginBottom: spacing.xl,
-            textAlign: 'center',
-            lineHeight: typography.lineHeight.relaxed
-          }]}>
-            You haven't created any events yet. Start by creating your first event!
-          </Text>
+              color: colors.gray[600],
+              textAlign: 'center',
+              fontSize: typography.fontSize.base,
+            }]}>
+              You haven't created any events yet. Start by creating your first event!
+            </Text>
+
           <TouchableOpacity
             style={[commonStyles.button, { 
               backgroundColor: colors.primary,
@@ -1073,12 +1075,14 @@ export default function ManageScreen() {
               paddingHorizontal: spacing.xl,
               flexDirection: 'row',
               alignItems: 'center',
+              marginTop: spacing.xl,
               gap: spacing.sm,
+              borderRadius: borderRadius.lg,
             }]}
             onPress={() => router.push('/events/add')}
           >
             <Ionicons name="add-circle" size={20} color={colors.white} />
-            <Text style={[commonStyles.buttonText]}>Create Event</Text>
+            <Text style={[commonStyles.buttonText, { color: colors.white }]}>Create Event</Text>
           </TouchableOpacity>
         </View>
       ) : (
