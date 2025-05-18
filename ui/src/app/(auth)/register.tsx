@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { API_URL } from './../config/api';
+import { colors } from '../theme';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
@@ -75,7 +76,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
   },
   title: {
     fontSize: 24,
@@ -85,24 +86,24 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.gray[300],
     padding: 10,
     borderRadius: 5,
     marginBottom: 15,
   },
   button: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
     padding: 15,
     borderRadius: 5,
     marginBottom: 15,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.white,
     textAlign: 'center',
     fontWeight: 'bold',
   },
   link: {
-    color: '#007AFF',
+    color: colors.primary,
     textAlign: 'center',
   },
 }); 
