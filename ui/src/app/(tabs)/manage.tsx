@@ -776,8 +776,17 @@ export default function ManageScreen() {
     return (
       <View style={[{ 
         backgroundColor: colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.gray[200],
+        marginHorizontal: spacing.base,
+        marginVertical: spacing.sm,
+        borderRadius: borderRadius.lg,
+        shadowColor: colors.gray[900],
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
       }]}>
         <View style={{ padding: spacing.base }}>
           {/* Header Section */}

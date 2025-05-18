@@ -212,20 +212,6 @@ const CreatorModal: React.FC<CreatorModalProps> = ({ visible, creator, onClose }
     );
   };
 
-  const renderInterests = () => {
-    if (!creator.interests || creator.interests.length === 0) {
-      return <Text style={styles.noInterests}>No interests added</Text>;
-    }
-    return (
-      <View style={styles.interestsContainer}>
-        {creator.interests.map((interest, index) => (
-          <View key={index} style={styles.interestTag}>
-            <Text style={styles.interestText}>{interest}</Text>
-          </View>
-        ))}
-      </View>
-    );
-  };
 
   if (!visible) return null;
 
@@ -1136,10 +1122,19 @@ export default function EventsScreen() {
     return (
       <View style={{
         backgroundColor: colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.gray[200],
+        marginHorizontal: spacing.base,
+        marginVertical: spacing.sm,
+        borderRadius: borderRadius.lg,
+        shadowColor: colors.gray[900],
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
       }}>
-        <View style={{ padding: spacing.sm, marginBottom: spacing['2xl'] }}>
+        <View style={{ padding: spacing.sm, marginBottom: spacing.sm }}>
           {/* Header Section */}
           <View style={{ marginBottom: spacing.lg }}>
             <Text style={[commonStyles.subtitle, {
@@ -1196,7 +1191,7 @@ export default function EventsScreen() {
             borderColor: colors.gray[200],
             padding: spacing.base,
             borderRadius: borderRadius.sm,
-            marginBottom: spacing.lg,
+            marginBottom: spacing.sm,
           }}>
             <View style={[commonStyles.row, { marginBottom: spacing.xs }]}>
               <Ionicons name="calendar-outline" size={20} color={colors.gray[600]} style={{ marginRight: spacing.xs }} />
@@ -1216,13 +1211,13 @@ export default function EventsScreen() {
           {item.type === 'recurring' && (
             <View style={{
               borderWidth: 1,
-              borderColor: colors.primary[200],
+              borderColor: colors.gray[200],
               padding: spacing.base,
               borderRadius: borderRadius.sm,
-              marginBottom: spacing.lg,
+              marginBottom: spacing.sm,
             }}>
               <Text style={[commonStyles.text, { color: colors.primary, fontWeight: '500' }]}>
-                Repeats {item.repeatFrequency}ly
+                Repeats {item.repeatFrequency}
                 {item.repeatDays && item.repeatDays.length > 0 &&
                   ` on ${item.repeatDays.join(', ')}`}
               </Text>
@@ -1324,36 +1319,9 @@ export default function EventsScreen() {
 
           {/* Footer */}
           <View style={{ borderTopWidth: 1, borderTopColor: colors.gray[200], paddingTop: spacing.lg }}>
-            <Text style={[commonStyles.textTertiary, { marginBottom: spacing.base }]}>
-              Created {new Date(item.createdAt).toLocaleDateString()}
-            </Text>
 
             <View style={[commonStyles.row, { justifyContent: 'flex-end', gap: spacing.sm }]}>
               {renderParticipationButton(item)}
-              {item.creator.id === user?.id && (
-                <TouchableOpacity
-                  style={[commonStyles.button, {
-                    backgroundColor: colors.white,
-                    borderWidth: 1,
-                    borderColor: colors.danger,
-                    paddingVertical: spacing.sm,
-                    paddingHorizontal: spacing.lg,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.xs,
-                  }]}
-                  onPress={() => handleDeleteEvent(item._id, item.title)}
-                >
-                  <Ionicons name="trash" size={16} color={colors.danger} />
-                  <Text style={[commonStyles.text, {
-                    color: colors.danger,
-                    fontSize: typography.fontSize.sm,
-                    fontWeight: '500'
-                  }]}>
-                    Delete
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
           </View>
         </View>
@@ -1372,7 +1340,7 @@ export default function EventsScreen() {
   }
 
   return (
-    <View style={[commonStyles.container, { backgroundColor: colors.white }]}>
+    <View style={[ { backgroundColor: colors.white }]}>
       {alertConfig && (
         <CustomAlert
           visible={showAlert}
@@ -1382,19 +1350,6 @@ export default function EventsScreen() {
         />
       )}
 
-      {/* Header */}
-      <View style={{
-        backgroundColor: colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.gray[200],
-        paddingHorizontal: spacing.sm,
-        paddingTop: spacing.sm,
-        paddingBottom: spacing.sm,
-      }}>
-        <Text style={[commonStyles.title, { color: colors.gray[900], marginBottom: 0 }]}>
-          Explore Events
-        </Text>
-      </View>
 
       {/* Content */}
       {events.length === 0 ? (
