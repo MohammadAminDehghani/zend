@@ -108,7 +108,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
           'Authorization': `Bearer ${token}`
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to fetch user details');
@@ -190,7 +190,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
                 imageSource = { uri: url };
               }
             }
-            
+
             return (
               <View style={{ width: imageSize, aspectRatio: 1 }}>
                 <Image
@@ -217,7 +217,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
       animationType="fade"
       onRequestClose={onClose}
     >
-      <TouchableOpacity 
+      <TouchableOpacity
         style={{ flex: 1 }}
         activeOpacity={1}
         onPress={onClose}
@@ -228,7 +228,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
             backgroundColor: 'rgba(0, 0, 0, 0.3)',
             justifyContent: 'flex-end',
           }}>
-            <TouchableOpacity 
+            <TouchableOpacity
               activeOpacity={1}
               onPress={(e) => e.stopPropagation()}
             >
@@ -263,7 +263,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
                     zIndex: 1,
                   }}
                 />
-                
+
                 <View style={{
                   flexDirection: 'row',
                   justifyContent: 'space-between',
@@ -317,13 +317,13 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
                 ) : userDetails ? (
                   <ScrollView>
                     {renderUserPhotos()}
-                    
+
                     <View style={{ padding: spacing.lg }}>
-                      <View style={{ 
-                        flexDirection: 'row', 
+                      <View style={{
+                        flexDirection: 'row',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        marginBottom: spacing.lg 
+                        marginBottom: spacing.lg
                       }}>
                         <View>
                           <Text style={[commonStyles.title, { marginBottom: spacing.xs }]}>{userDetails.name}</Text>
@@ -343,7 +343,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
                             onClose();
                             router.push({
                               pathname: '/chat',
-                              params: { 
+                              params: {
                                 recipientId: userDetails.id,
                                 recipientName: userDetails.name,
                                 recipientPicture: userDetails.pictures?.[0]?.url,
@@ -353,7 +353,7 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
                           }}
                         >
                           <Ionicons name="chatbubble-outline" size={14} color={colors.primary} />
-                          <Text style={[commonStyles.text, { 
+                          <Text style={[commonStyles.text, {
                             color: colors.primary,
                             fontSize: typography.fontSize.xs,
                             fontWeight: '500'
@@ -424,7 +424,7 @@ export default function ManageScreen() {
 
   const fetchEvents = useCallback(async () => {
     const controller = new AbortController();
-    
+
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/api/events/managed`, {
@@ -433,7 +433,7 @@ export default function ManageScreen() {
         },
         signal: controller.signal
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch events');
       }
@@ -535,7 +535,7 @@ export default function ManageScreen() {
   const handleStatusChange = useCallback(async (eventId: string, userId: string, newStatus: 'pending' | 'approved' | 'rejected') => {
     try {
       let response;
-      
+
       if (newStatus === 'pending') {
         // First, have the user leave the event
         response = await fetch(`${API_URL}/api/events/${eventId}/leave`, {
@@ -592,13 +592,13 @@ export default function ManageScreen() {
 
       const managedEvents: Event[] = await eventResponse.json();
       const updatedEventData = managedEvents.find((event) => event._id === eventId);
-      
+
       if (!updatedEventData) {
         throw new Error('Failed to find updated event');
       }
 
-      setEvents(prevEvents => 
-        prevEvents.map(event => 
+      setEvents(prevEvents =>
+        prevEvents.map(event =>
           event._id === eventId ? updatedEventData : event
         )
       );
@@ -648,13 +648,13 @@ export default function ManageScreen() {
             borderBottomWidth: index < item.participants.length - 1 ? 1 : 0,
             borderBottomColor: colors.gray[200],
           }}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={{ flex: 1, padding: spacing.xs }}
               onPress={() => setSelectedUserId(participant.userId)}
             >
-              <View style={{ 
-                flexDirection: 'row', 
-                alignItems: 'center', 
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
                 justifyContent: 'space-between',
                 marginBottom: spacing.xs
               }}>
@@ -697,17 +697,17 @@ export default function ManageScreen() {
                         });
                       }}
                     >
-                      <Text style={[commonStyles.textSecondary, { 
+                      <Text style={[commonStyles.textSecondary, {
                         fontSize: typography.fontSize.xs,
                         color: statusColors[participant.status],
                         fontWeight: '500'
                       }]}>
                         {statusLabels[participant.status]}
                       </Text>
-                      <Ionicons 
-                        name="chevron-down" 
-                        size={12} 
-                        color={statusColors[participant.status]} 
+                      <Ionicons
+                        name="chevron-down"
+                        size={12}
+                        color={statusColors[participant.status]}
                       />
                     </TouchableOpacity>
                   )}
@@ -725,7 +725,7 @@ export default function ManageScreen() {
                   onPress={() => {
                     router.push({
                       pathname: '/chat',
-                      params: { 
+                      params: {
                         recipientId: participant.userId,
                         recipientName: participant.user?.name || 'Unknown User',
                         recipientPicture: participant.user?.pictures?.[0]?.url,
@@ -735,7 +735,7 @@ export default function ManageScreen() {
                   }}
                 >
                   <Ionicons name="chatbubble-outline" size={14} color={colors.primary} />
-                  <Text style={[commonStyles.text, { 
+                  <Text style={[commonStyles.text, {
                     color: colors.primary,
                     fontSize: typography.fontSize.xs,
                     fontWeight: '500'
@@ -756,7 +756,7 @@ export default function ManageScreen() {
 
   const renderEvent = useCallback(({ item }: { item: Event }) => {
     if (!item || !item._id) return null;
-    
+
     const formatDate = (dateString: string) => {
       return new Date(dateString).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -774,7 +774,7 @@ export default function ManageScreen() {
     };
 
     return (
-      <View style={[{ 
+      <View style={[{
         backgroundColor: colors.white,
         marginHorizontal: spacing.base,
         marginVertical: spacing.sm,
@@ -791,17 +791,17 @@ export default function ManageScreen() {
         <View style={{ padding: spacing.base }}>
           {/* Header Section */}
           <View style={{ marginBottom: spacing.lg }}>
-            <Text style={[commonStyles.subtitle, { 
+            <Text style={[commonStyles.subtitle, {
               fontSize: typography.fontSize.xl,
               marginBottom: spacing.xs,
               color: colors.gray[900]
             }]}>
               {item.title}
             </Text>
-            <Text style={[commonStyles.text, { 
+            <Text style={[commonStyles.text, {
               color: colors.gray[600],
               marginBottom: spacing.base,
-              lineHeight: typography.lineHeight.relaxed
+              textAlign: 'justify',
             }]}>
               {item.description}
             </Text>
@@ -847,11 +847,11 @@ export default function ManageScreen() {
             }}>
               <Text style={[commonStyles.text, { color: colors.primary, fontWeight: '500' }]}>
                 Repeats {item.repeatFrequency}
-                {item.repeatDays && item.repeatDays.length > 0 && 
+                {item.repeatDays && item.repeatDays.length > 0 &&
                   ` on ${item.repeatDays.join(', ')}`}
               </Text>
               {item.endDate && (
-                <Text style={[commonStyles.textSecondary, { 
+                <Text style={[commonStyles.textSecondary, {
                   fontSize: typography.fontSize.sm,
                   marginTop: spacing.xs,
                   color: colors.primary + '99'
@@ -872,14 +872,14 @@ export default function ManageScreen() {
             </Text>
             {item.locations.map((location, index) => (
               <View key={index} style={{ marginBottom: index < item.locations.length - 1 ? spacing.base : 0 }}>
-                <Text style={[commonStyles.text, { 
+                <Text style={[commonStyles.text, {
                   fontWeight: '500',
                   marginBottom: spacing.xs,
                   color: colors.gray[900]
                 }]}>
                   📍 {location.name}
                 </Text>
-                <View style={{ 
+                <View style={{
                   height: 120,
                   borderRadius: borderRadius.lg,
                   overflow: 'hidden',
@@ -911,63 +911,63 @@ export default function ManageScreen() {
           </View>
 
           {/* Footer */}
-            <View style={[commonStyles.row, { justifyContent: 'space-between', gap: spacing.sm, width: '100%' }]}>
-              <TouchableOpacity
-                style={[commonStyles.button, { 
-                  backgroundColor: colors.white,
-                  borderWidth: 1,
-                  borderColor: colors.primary,
-                  paddingVertical: spacing.sm,
-                  paddingHorizontal: spacing.lg,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: spacing.xs,
-                  flex: 1,
-                }]}
-                onPress={() => {
-                  router.push({
-                    pathname: '/events/edit/[id]',
-                    params: { id: item._id }
-                  });
-                }}
-              >
-                <Ionicons name="pencil" size={16} color={colors.primary} />
-                <Text style={[commonStyles.text, { 
-                  color: colors.primary,
-                  fontSize: typography.fontSize.sm,
-                  fontWeight: '500'
-                }]}>
-                  Edit
-                </Text>
-              </TouchableOpacity>
+          <View style={[commonStyles.row, { justifyContent: 'space-between', gap: spacing.sm, width: '100%' }]}>
+            <TouchableOpacity
+              style={[commonStyles.button, {
+                backgroundColor: colors.white,
+                borderWidth: 1,
+                borderColor: colors.primary,
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.lg,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing.xs,
+                flex: 1,
+              }]}
+              onPress={() => {
+                router.push({
+                  pathname: '/events/edit/[id]',
+                  params: { id: item._id }
+                });
+              }}
+            >
+              <Ionicons name="pencil" size={16} color={colors.primary} />
+              <Text style={[commonStyles.text, {
+                color: colors.primary,
+                fontSize: typography.fontSize.sm,
+                fontWeight: '500'
+              }]}>
+                Edit
+              </Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[commonStyles.button, { 
-                  backgroundColor: colors.white,
-                  borderWidth: 1,
-                  borderColor: colors.danger,
-                  paddingVertical: spacing.sm,
-                  paddingHorizontal: spacing.lg,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: spacing.xs,
-                  flex: 1,
-                }]}
-                onPress={() => handleDeleteEvent(item._id, item.title)}
-              >
-                <Ionicons name="trash" size={16} color={colors.danger} />
-                <Text style={[commonStyles.text, { 
-                  color: colors.danger,
-                  fontSize: typography.fontSize.sm,
-                  fontWeight: '500'
-                }]}>
-                  Delete
-                </Text>
-              </TouchableOpacity>
-            </View>
-          
+            <TouchableOpacity
+              style={[commonStyles.button, {
+                backgroundColor: colors.white,
+                borderWidth: 1,
+                borderColor: colors.danger,
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.lg,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing.xs,
+                flex: 1,
+              }]}
+              onPress={() => handleDeleteEvent(item._id, item.title)}
+            >
+              <Ionicons name="trash" size={16} color={colors.danger} />
+              <Text style={[commonStyles.text, {
+                color: colors.danger,
+                fontSize: typography.fontSize.sm,
+                fontWeight: '500'
+              }]}>
+                Delete
+              </Text>
+            </TouchableOpacity>
+          </View>
+
         </View>
       </View>
     );
@@ -984,7 +984,7 @@ export default function ManageScreen() {
   }
 
   return (
-    <View style={[ { backgroundColor: colors.white } ]}>
+    <View style={[{ backgroundColor: colors.white }]}>
       {alertConfig && (
         <CustomAlert
           visible={showAlert}
@@ -994,43 +994,6 @@ export default function ManageScreen() {
         />
       )}
 
-      {/* Header */}
-      <View style={{
-        backgroundColor: colors.white,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.gray[200],
-        paddingHorizontal: spacing.base,
-        paddingTop: spacing.xl,
-        paddingBottom: spacing.lg,
-      }}>
-        <View style={[commonStyles.row, { justifyContent: 'space-between', alignItems: 'center' }]}>
-          <Text style={[commonStyles.title, { color: colors.gray[900], marginBottom: 0 }]}>
-            Manage Events
-          </Text>
-          <TouchableOpacity 
-            style={[commonStyles.button, { 
-              backgroundColor: colors.primary,
-              paddingVertical: spacing.xs,
-              paddingHorizontal: spacing.sm,
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.xs,
-              borderRadius: borderRadius.sm,
-            }]}
-            onPress={() => router.push('/events/add')}
-          >
-            <Ionicons name="add-circle-outline" size={14} color={colors.white} />
-            <Text style={[commonStyles.text, { 
-              color: colors.white,
-              fontSize: typography.fontSize.xs,
-              fontWeight: '500'
-            }]}>
-              Add Event
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-      
       {/* Content */}
       {events.length === 0 ? (
         <View style={{ 
@@ -1039,7 +1002,8 @@ export default function ManageScreen() {
           alignItems: 'center',
           paddingHorizontal: spacing.xl,
           backgroundColor: colors.white,
-          minHeight: Dimensions.get('window').height - 200,
+          minHeight: Dimensions.get('window').height,
+          paddingBottom: 100, // Add padding for tab bar
         }}>
           <View style={{
             width: 80,
@@ -1052,7 +1016,7 @@ export default function ManageScreen() {
           }}>
             <Ionicons name="calendar-outline" size={40} color={colors.gray[400]} />
           </View>
-          <Text style={[commonStyles.subtitle, { 
+          <Text style={[commonStyles.subtitle, {
             color: colors.gray[900],
             marginBottom: spacing.sm,
             textAlign: 'center',
@@ -1060,16 +1024,16 @@ export default function ManageScreen() {
           }]}>
             No Events Yet
           </Text>
-          <Text style={[commonStyles.text, { 
-              color: colors.gray[600],
-              textAlign: 'center',
-              fontSize: typography.fontSize.base,
-            }]}>
-              You haven't created any events yet. Start by creating your first event!
-            </Text>
+          <Text style={[commonStyles.text, {
+            color: colors.gray[600],
+            textAlign: 'center',
+            fontSize: typography.fontSize.base,
+          }]}>
+            You haven't created any events yet. Start by creating your first event!
+          </Text>
 
           <TouchableOpacity
-            style={[commonStyles.button, { 
+            style={[commonStyles.button, {
               backgroundColor: colors.primary,
               paddingVertical: spacing.sm,
               paddingHorizontal: spacing.xl,
@@ -1082,30 +1046,69 @@ export default function ManageScreen() {
             onPress={() => router.push('/events/add')}
           >
             <Ionicons name="add-circle" size={20} color={colors.white} />
-            <Text style={[commonStyles.buttonText, { color: colors.white }]}>Create Event</Text>
+            <Text style={[commonStyles.buttonText, { color: colors.white }]}>Add Event</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          ref={flatListRef}
-          data={events}
-          renderItem={renderEvent}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={{ 
+        <>
+          {/* Header */}
+          <View style={{
             backgroundColor: colors.white,
-          }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[colors.primary]}
-              tintColor={colors.primary}
-            />
-          }
-        />
+            borderBottomWidth: 1,
+            borderBottomColor: colors.gray[200],
+            paddingHorizontal: spacing.base,
+            paddingTop: spacing.xl,
+            paddingBottom: spacing.lg,
+          }}>
+            <View style={[commonStyles.row, { justifyContent: 'space-between', alignItems: 'center' }]}>
+              <Text style={[commonStyles.title, { color: colors.gray[900], marginBottom: 0 }]}>
+                Manage Events
+              </Text>
+              <TouchableOpacity
+                style={[commonStyles.button, {
+                  backgroundColor: colors.primary,
+                  paddingVertical: spacing.xs,
+                  paddingHorizontal: spacing.sm,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.xs,
+                  borderRadius: borderRadius.sm,
+                }]}
+                onPress={() => router.push('/events/add')}
+              >
+                <Ionicons name="add-circle-outline" size={14} color={colors.white} />
+                <Text style={[commonStyles.text, {
+                  color: colors.white,
+                  fontSize: typography.fontSize.xs,
+                  fontWeight: '500'
+                }]}>
+                  Add Event
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <FlatList
+            ref={flatListRef}
+            data={events}
+            renderItem={renderEvent}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={{ 
+              backgroundColor: colors.white,
+              paddingBottom: 100, // Add padding for tab bar
+            }}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
+              />
+            }
+          />
+        </>
       )}
-      
+
       <UserDetailsModal
         visible={!!selectedUserId}
         userId={selectedUserId || ''}
