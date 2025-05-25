@@ -1406,6 +1406,7 @@ export default function EventsScreen() {
       <EventFilters
         onApplyFilters={applyFilters}
         onReset={resetFilters}
+        events={events}
       />
 
       {/* Content */}

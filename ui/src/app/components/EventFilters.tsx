@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
@@ -8,6 +8,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 interface EventFiltersProps {
   onApplyFilters: (filters: EventFilters) => void;
   onReset: () => void;
+  events: Array<{ tags: string[] }>;
 }
 
 export interface EventFilters {
@@ -25,12 +26,21 @@ export interface EventFilters {
   repeatFrequency?: 'daily' | 'weekly' | 'monthly';
 }
 
-const EventFilters: React.FC<EventFiltersProps> = ({ onApplyFilters, onReset }) => {
+const EventFilters: React.FC<EventFiltersProps> = ({ onApplyFilters, onReset, events }) => {
   const [showModal, setShowModal] = useState(false);
   const [filters, setFilters] = useState<EventFilters>({});
   const [showDatePicker, setShowDatePicker] = useState<'start' | 'end' | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
 
-  const availableTags = ['art', 'sports', 'music', 'food', 'technology', 'education', 'business', 'social'];
+  useEffect(() => {
+    // Get all unique tags from events
+    const allTags = events.reduce((tags: string[], event) => {
+      return [...tags, ...(event.tags || [])];
+    }, []);
+    const uniqueTags = [...new Set(allTags)].sort();
+    setAvailableTags(uniqueTags);
+  }, [events]);
+
   const statusOptions = ['public', 'private'];
   const typeOptions = ['one-time', 'recurring'];
   const frequencyOptions = ['daily', 'weekly', 'monthly'];
@@ -125,7 +135,10 @@ const EventFilters: React.FC<EventFiltersProps> = ({ onApplyFilters, onReset }) 
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filter Events</Text>
-              <TouchableOpacity onPress={() => setShowModal(false)}>
+              <TouchableOpacity 
+                style={styles.closeButton}
+                onPress={() => setShowModal(false)}
+              >
                 <Ionicons name="close" size={24} color={colors.gray[600]} />
               </TouchableOpacity>
             </View>
@@ -184,20 +197,32 @@ const EventFilters: React.FC<EventFiltersProps> = ({ onApplyFilters, onReset }) 
                 <Text style={styles.sectionTitle}>Date Range</Text>
                 <View style={styles.dateContainer}>
                   <TouchableOpacity
-                    style={styles.dateButton}
+                    style={[
+                      styles.dateButton,
+                      filters.dateRange?.start && styles.dateButtonActive
+                    ]}
                     onPress={() => setShowDatePicker('start')}
                   >
-                    <Text style={styles.dateButtonText}>
+                    <Text style={[
+                      styles.dateButtonText,
+                      filters.dateRange?.start && styles.dateButtonTextActive
+                    ]}>
                       {filters.dateRange?.start
                         ? filters.dateRange.start.toLocaleDateString()
                         : 'Start Date'}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={styles.dateButton}
+                    style={[
+                      styles.dateButton,
+                      filters.dateRange?.end && styles.dateButtonActive
+                    ]}
                     onPress={() => setShowDatePicker('end')}
                   >
-                    <Text style={styles.dateButtonText}>
+                    <Text style={[
+                      styles.dateButtonText,
+                      filters.dateRange?.end && styles.dateButtonTextActive
+                    ]}>
                       {filters.dateRange?.end
                         ? filters.dateRange.end.toLocaleDateString()
                         : 'End Date'}
@@ -214,7 +239,7 @@ const EventFilters: React.FC<EventFiltersProps> = ({ onApplyFilters, onReset }) 
                     <Tag
                       key={tag}
                       label={tag}
-                      isSelected={filters.tags?.includes(tag)}
+                      isSelected={!!filters.tags?.includes(tag)}
                       onPress={() => toggleTag(tag)}
                     />
                   ))}
@@ -318,29 +343,37 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: colors.white,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
+    borderTopLeftRadius: borderRadius.sm,
+    borderTopRightRadius: borderRadius.sm,
     height: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.lg,
+    padding: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray[200],
   },
   modalTitle: {
-    fontSize: typography.fontSize.xl,
+    fontSize: typography.fontSize.sm,
     fontWeight: '600',
     color: colors.gray[900],
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.gray[200],
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterContent: {
     flex: 1,
     padding: spacing.lg,
   },
   filterSection: {
-    marginBottom: spacing.xl,
+    marginBottom: spacing.sm,
   },
   sectionTitle: {
     fontSize: typography.fontSize.lg,
@@ -384,9 +417,16 @@ const styles = StyleSheet.create({
     borderColor: colors.gray[200],
     backgroundColor: colors.gray[100],
   },
+  dateButtonActive: {
+    backgroundColor: colors.primary + '10',
+    borderColor: colors.primary,
+  },
   dateButtonText: {
     color: colors.gray[700],
     textAlign: 'center',
+  },
+  dateButtonTextActive: {
+    color: colors.primary,
   },
   tagsContainer: {
     flexDirection: 'row',
