@@ -17,14 +17,22 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.zend"
+      "bundleIdentifier": "zendo",
+      "config": {
+        "googleMapsApiKey": "AIzaSyC-R-c3fY3bT-u5rcYp6VWf-5s3t6TAua8"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.yourcompany.zend"
+      "package": "zendo",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyC-R-c3fY3bT-u5rcYp6VWf-5s3t6TAua8"
+        }
+      }
     },
     "web": {
       "bundler": "metro",
@@ -48,6 +56,12 @@
           "icon": "./assets/images/icon.png",
           "color": "#ffffff",
           "sounds": ["./assets/sounds/notification.wav"]
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
         }
       ]
     ],

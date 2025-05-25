@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl, Dimensions, Modal, Image, ScrollView, Animated } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, RefreshControl, Dimensions, Modal, Image, ScrollView, Animated, StyleSheet } from 'react-native';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { API_URL, getImageUrl } from '../config/api';
 import { useAuth } from '../../contexts/AuthContext';
-import MapView, { Marker } from 'react-native-maps';
+//import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors, typography, spacing, borderRadius, commonStyles } from '../theme';
@@ -12,6 +12,7 @@ import { useAlert } from '../utils/alert';
 import { BlurView } from 'expo-blur';
 import Tag from '../components/Tag';
 import { LinearGradient } from 'expo-linear-gradient';
+import PlatformMap from '../../components/PlatformMap';
 
 interface Location {
   name: string;
@@ -411,6 +412,13 @@ const UserDetailsModal: React.FC<UserDetailsModalProps> = ({ visible, userId, on
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+});
 
 export default function ManageScreen() {
   const [events, setEvents] = useState<Event[]>([]);
@@ -886,25 +894,23 @@ export default function ManageScreen() {
                   borderWidth: 1,
                   borderColor: colors.gray[200],
                 }}>
-                  <MapView
-                    style={{ width: '100%', height: '100%' }}
+                  <PlatformMap
+                    style={styles.map}
                     initialRegion={{
                       latitude: location.latitude,
                       longitude: location.longitude,
                       latitudeDelta: 0.01,
                       longitudeDelta: 0.01,
                     }}
-                    scrollEnabled={false}
-                    zoomEnabled={false}
                   >
-                    <Marker
+                    {/* <Marker
                       coordinate={{
                         latitude: location.latitude,
                         longitude: location.longitude,
                       }}
                       title={location.name}
-                    />
-                  </MapView>
+                    /> */}
+                  </PlatformMap>
                 </View>
               </View>
             ))}

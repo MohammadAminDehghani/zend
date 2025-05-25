@@ -7,12 +7,7 @@ export default function TabLayout() {
     <Tabs screenOptions={{
       tabBarActiveTintColor: colors.primary,
     }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          href: null,
-        }}
-      />
+
       <Tabs.Screen
         name="explore"
         options={{
@@ -20,13 +15,6 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <FontAwesome name="compass" size={24} color={color} />,
         }}
       />
-      {/* <Tabs.Screen
-        name="add"
-        options={{
-          title: 'Add',
-          tabBarIcon: ({ color }) => <FontAwesome name="plus-circle" size={24} color={color} />,
-        }}
-      /> */}
       <Tabs.Screen
         name="manage"
         options={{
@@ -55,6 +43,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <FontAwesome name="bell" size={24} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="index"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
+
   );
 }

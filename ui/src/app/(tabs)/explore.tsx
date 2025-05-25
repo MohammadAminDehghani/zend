@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { API_URL, getImageUrl } from '../config/api';
 import { useAuth } from '../../contexts/AuthContext';
-import MapView, { Marker } from 'react-native-maps';
+//import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import SocketService from '../../services/socket';
@@ -13,6 +13,7 @@ import { useAlert } from '../utils/alert';
 import { BlurView } from 'expo-blur';
 import Tag from '../components/Tag';
 import { LinearGradient } from 'expo-linear-gradient';
+import PlatformMap from '../../components/PlatformMap';
 
 interface Location {
   name: string;
@@ -1282,25 +1283,23 @@ export default function EventsScreen() {
                   borderWidth: 1,
                   borderColor: colors.gray[200],
                 }}>
-                  <MapView
-                    style={{ width: '100%', height: '100%' }}
+                  <PlatformMap
+                    style={styles.map}
                     initialRegion={{
                       latitude: location.latitude,
                       longitude: location.longitude,
                       latitudeDelta: 0.01,
                       longitudeDelta: 0.01,
                     }}
-                    scrollEnabled={false}
-                    zoomEnabled={false}
                   >
-                    <Marker
+                    {/* <Marker
                       coordinate={{
                         latitude: location.latitude,
                         longitude: location.longitude,
                       }}
                       title={location.name}
-                    />
-                  </MapView>
+                    /> */}
+                  </PlatformMap>
                 </View>
               </View>
             ))}

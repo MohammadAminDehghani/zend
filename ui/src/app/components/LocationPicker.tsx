@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, Animated, PanResponder } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Marker, Region } from 'react-native-maps';
 import { colors, typography, spacing, commonStyles } from '../theme';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { EventLocation } from '../../hooks/useEventForm';
+import PlatformMap from '../../components/PlatformMap';
 
 interface LocationPickerProps {
   locations: EventLocation[];
@@ -41,9 +42,11 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: (_, gestureState) => {
+        const currentX = pan.x as any;
+        const currentY = pan.y as any;
         pan.setOffset({
-          x: pan.x._value,
-          y: pan.y._value
+          x: currentX._value || 0,
+          y: currentY._value || 0
         });
         pan.setValue({ x: 0, y: 0 });
       },
@@ -99,17 +102,24 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
     setDraggingLocationIndex(index);
   };
 
+  const defaultRegion: Region = {
+    latitude: 0,
+    longitude: 0,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  };
+
   const initialRegion = userLocation ? {
     latitude: userLocation.latitude,
     longitude: userLocation.longitude,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
-  } : undefined;
+  } : defaultRegion;
 
   return (
     <View style={styles.container}>
       <View>
-        <Text style={[typography.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>
+        <Text style={[commonStyles.label, { marginBottom: spacing.xs, color: colors.gray[700] }]}>
           Location Name
         </Text>
         <TextInput
@@ -135,24 +145,21 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       <View style={styles.mapContainer}>
         {locationPermissionStatus === 'pending' ? (
           <View style={styles.permissionContainer}>
-            <Text style={[typography.body, { textAlign: 'center', marginBottom: spacing.base }]}>
+            <Text style={[commonStyles.text, { textAlign: 'center', marginBottom: spacing.base }]}>
               We need your location to show nearby places
             </Text>
             <TouchableOpacity
               style={styles.permissionButton}
               onPress={onRequestPermission}
             >
-              <Text style={[typography.body, { color: colors.white }]}>Grant Location Access</Text>
+              <Text style={[commonStyles.text, { color: colors.white }]}>Grant Location Access</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <MapView
-            provider={PROVIDER_GOOGLE}
+          <PlatformMap
             style={styles.map}
             initialRegion={initialRegion}
             onPress={handleMapPress}
-            showsUserLocation
-            showsMyLocationButton
           >
             {locations.map((location, index) => (
               <Marker
@@ -173,7 +180,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
                 pinColor={colors.primary}
               />
             )}
-          </MapView>
+          </PlatformMap>
         )}
       </View>
 
@@ -182,15 +189,15 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         onPress={addLocation}
         disabled={!currentLocation || !locationName.trim()}
       >
-        <Text style={[typography.body, { color: colors.white }]}>Add Location</Text>
+        <Text style={[commonStyles.text, { color: colors.white }]}>Add Location</Text>
       </TouchableOpacity>
 
       {locations.length > 0 && (
         <View>
-          <Text style={[typography.label, { marginBottom: spacing.base, color: colors.gray[700] }]}>
+          <Text style={[commonStyles.label, { marginBottom: spacing.base, color: colors.gray[700] }]}>
             Added Locations
           </Text>
-          <Text style={[typography.caption, { fontStyle: 'italic', marginBottom: spacing.sm }]}>
+          <Text style={[commonStyles.textSecondary, { fontStyle: 'italic', marginBottom: spacing.sm }]}>
             Hold and drag ≡ to reorder locations
           </Text>
           {locations.map((location, index) => (
@@ -214,8 +221,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
                   <Ionicons name="menu" size={24} color={colors.gray[600]} />
                 </TouchableOpacity>
                 <View style={styles.locationInfo}>
-                  <Text style={typography.body}>{location.name}</Text>
-                  <Text style={typography.caption}>
+                  <Text style={commonStyles.text}>{location.name}</Text>
+                  <Text style={commonStyles.textSecondary}>
                     {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                   </Text>
                 </View>
@@ -232,7 +239,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
       )}
 
       {(isFocused || hasSubmitted) && error && (
-        <Text style={[typography.caption, { color: colors.danger }]}>
+        <Text style={[commonStyles.textSecondary, { color: colors.danger }]}>
           {error}
         </Text>
       )}
@@ -259,7 +266,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     height: '100%',
-    backgroundColor: colors.gray[50],
+    backgroundColor: colors.gray[100],
   },
   permissionButton: {
     backgroundColor: colors.primary,
