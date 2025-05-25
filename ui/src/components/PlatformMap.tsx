@@ -1,53 +1,69 @@
 import React from 'react';
 import { Platform, StyleSheet } from 'react-native';
-import MapView, { Marker, Region } from 'react-native-maps';
+import MapView, { Marker, Region, PROVIDER_GOOGLE } from 'react-native-maps';
+
+interface EventLocation {
+  name: string;
+  latitude: number;
+  longitude: number;
+}
 
 interface PlatformMapProps {
   style?: any;
   initialRegion: Region;
   children?: React.ReactNode;
   onPress?: (event: any) => void;
+  eventLocation?: EventLocation;
 }
 
 // Web-specific map component
-const WebMap: React.FC<PlatformMapProps> = ({ initialRegion, onPress }) => {
-  const { latitude, longitude } = initialRegion;
-  const mapUrl = `https://www.google.com/maps/embed/v1/place?key=AIzaSyC-R-c3fY3bT-u5rcYp6VWf-5s3t6TAua8&q=${latitude},${longitude}&zoom=15`;
-
+const WebMap: React.FC<PlatformMapProps> = ({ eventLocation, ...props }) => {
   return (
-    <div 
-      style={{ width: '100%', height: '100%' }}
-      onClick={(e) => {
-        if (onPress) {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          onPress({
-            nativeEvent: {
-              coordinate: {
-                latitude: initialRegion.latitude + (y / rect.height - 0.5) * initialRegion.latitudeDelta,
-                longitude: initialRegion.longitude + (x / rect.width - 0.5) * initialRegion.longitudeDelta
-              }
-            }
-          });
-        }
-      }}
+    <MapView
+      {...props}
+      provider={PROVIDER_GOOGLE}
+      showsUserLocation
+      showsMyLocationButton
     >
-      <iframe
-        src={mapUrl}
-        width="100%"
-        height="100%"
-        style={{ border: 0 }}
-        allowFullScreen
-        loading="lazy"
-      />
-    </div>
+      {eventLocation && (
+        <Marker
+          coordinate={{
+            latitude: eventLocation.latitude,
+            longitude: eventLocation.longitude
+          }}
+          title={eventLocation.name}
+          description={`${eventLocation.latitude.toFixed(6)}, ${eventLocation.longitude.toFixed(6)}`}
+          pinColor="red"
+        />
+      )}
+      {props.children}
+    </MapView>
   );
 };
 
 // Native map component
-const NativeMap: React.FC<PlatformMapProps> = (props) => {
-  return <MapView {...props} />;
+const NativeMap: React.FC<PlatformMapProps> = ({ eventLocation, ...props }) => {
+  return (
+    <MapView
+      {...props}
+      provider={PROVIDER_GOOGLE}
+      showsUserLocation
+      showsMyLocationButton
+    >
+      {eventLocation && (
+        <Marker
+          coordinate={{
+            latitude: eventLocation.latitude,
+            longitude: eventLocation.longitude
+          }}
+          title={eventLocation.name}
+          description={`${eventLocation.latitude.toFixed(6)}, ${eventLocation.longitude.toFixed(6)}`}
+          pinColor="red"
+        />
+      )}
+      {props.children}
+    </MapView>
+  );
 };
 
 // Export the appropriate component based on platform
