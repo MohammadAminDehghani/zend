@@ -14,6 +14,7 @@ import { BlurView } from 'expo-blur';
 import Tag from '../components/Tag';
 import { LinearGradient } from 'expo-linear-gradient';
 import PlatformMap from '../../components/PlatformMap';
+import EventFilters, { EventFilters as EventFiltersType } from '../components/EventFilters';
 
 interface Location {
   name: string;
@@ -41,7 +42,7 @@ interface Event {
     bio: string;
   };
   type: 'one-time' | 'recurring';
-  status: 'open' | 'verification_required';
+  status: 'public' | 'verification_required';
   capacity: number;
   participants: Array<{
     userId: string;
@@ -621,6 +622,7 @@ const ParticipantModal: React.FC<ParticipantModalProps> = ({ visible, participan
 
 export default function EventsScreen() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [filteredEvents, setFilteredEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const flatListRef = useRef<FlatList>(null);
@@ -784,7 +786,7 @@ export default function EventsScreen() {
     }
 
     try {
-      if (event.status === 'open') {
+      if (event.status === 'public') {
         const participants = event.participants || [];
         const approvedParticipants = participants.filter(p => p.status === 'approved').length;
         if (approvedParticipants >= (event.capacity || 0)) {
@@ -817,7 +819,7 @@ export default function EventsScreen() {
             ...e,
             participants: [...currentParticipants, {
               userId: user.id,
-              status: event.status === 'open' ? 'approved' : 'pending'
+              status: event.status === 'public' ? 'approved' : 'pending'
             }]
           };
         }
@@ -826,7 +828,7 @@ export default function EventsScreen() {
 
       show({
         title: 'Success',
-        message: event.status === 'open'
+        message: event.status === 'public'
           ? 'You have successfully joined the event!'
           : 'Your join request has been submitted and is pending approval',
         buttons: [{ text: 'OK', onPress: hide }]
@@ -1252,11 +1254,11 @@ export default function EventsScreen() {
               <View style={[commonStyles.row, { alignItems: 'center' }]}>
                 <Ionicons name="shield-outline" size={20} color={colors.gray[600]} style={{ marginRight: spacing.xs }} />
                 <Text style={[commonStyles.text, {
-                  color: item.status === 'open' ? colors.success : colors.warning,
+                  color: item.status === 'public' ? colors.success : colors.warning,
                   fontWeight: '500',
                   marginLeft: spacing.xs
                 }]}>
-                  {item.status === 'open' ? 'Open' : 'Verification Required'}
+                  {item.status === 'public' ? 'Open Access' : 'Verification Required'}
                 </Text>
               </View>
             </View>
@@ -1314,7 +1316,7 @@ export default function EventsScreen() {
           </Text>
 
           {/* Participants List */}
-          {(item.status === 'open' || item.participants?.some(p => p.userId === user?.id && p.status === 'approved')) && renderParticipants()}
+          {(item.status === 'public' || item.participants?.some(p => p.userId === user?.id && p.status === 'approved')) && renderParticipants()}
 
           {/* Footer */}
           <View style={{ borderTopWidth: 1, borderTopColor: colors.gray[200], paddingTop: spacing.lg }}>
@@ -1329,6 +1331,58 @@ export default function EventsScreen() {
   }, [user, handleDeleteEvent, renderParticipationButton, setSelectedCreator, setSelectedParticipant, handleParticipantPress]);
 
   const keyExtractor = useCallback((item: Event) => item._id, []);
+
+  const applyFilters = useCallback((filters: EventFiltersType) => {
+    let filtered = [...events];
+
+    // Filter by status
+    if (filters.status) {
+      filtered = filtered.filter(event => event.status === filters.status);
+    }
+
+    // Filter by type
+    if (filters.type) {
+      filtered = filtered.filter(event => event.type === filters.type);
+    }
+
+    // Filter by date range
+    if (filters.dateRange?.start || filters.dateRange?.end) {
+      filtered = filtered.filter(event => {
+        const eventDate = new Date(event.startDate);
+        if (filters.dateRange?.start && eventDate < filters.dateRange.start) {
+          return false;
+        }
+        if (filters.dateRange?.end && eventDate > filters.dateRange.end) {
+          return false;
+        }
+        return true;
+      });
+    }
+
+    // Filter by tags
+    if (filters.tags?.length) {
+      filtered = filtered.filter(event => 
+        event.tags.some(tag => filters.tags?.includes(tag))
+      );
+    }
+
+    // Filter by repeat frequency
+    if (filters.repeatFrequency) {
+      filtered = filtered.filter(event => 
+        event.repeatFrequency === filters.repeatFrequency
+      );
+    }
+
+    setFilteredEvents(filtered);
+  }, [events]);
+
+  const resetFilters = useCallback(() => {
+    setFilteredEvents(events);
+  }, [events]);
+
+  useEffect(() => {
+    setFilteredEvents(events);
+  }, [events]);
 
   if (loading) {
     return (
@@ -1349,9 +1403,13 @@ export default function EventsScreen() {
         />
       )}
 
+      <EventFilters
+        onApplyFilters={applyFilters}
+        onReset={resetFilters}
+      />
 
       {/* Content */}
-      {events.length === 0 ? (
+      {filteredEvents.length === 0 ? (
         <View style={{
           flex: 1,
           justifyContent: 'center',
@@ -1383,13 +1441,15 @@ export default function EventsScreen() {
             textAlign: 'center',
             lineHeight: typography.lineHeight.relaxed
           }]}>
-            There are no events available at the moment. Check back later!
+            {events.length === 0 
+              ? "There are no events available at the moment. Check back later!"
+              : "No events match your current filters. Try adjusting your filter criteria."}
           </Text>
         </View>
       ) : (
         <FlatList
           ref={flatListRef}
-          data={events}
+          data={filteredEvents}
           renderItem={renderEvent}
           keyExtractor={keyExtractor}
           contentContainerStyle={{
