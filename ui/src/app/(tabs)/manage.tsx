@@ -13,6 +13,7 @@ import { BlurView } from 'expo-blur';
 import Tag from '../components/Tag';
 import { LinearGradient } from 'expo-linear-gradient';
 import PlatformMap from '../../components/PlatformMap';
+import { useFocusEffect } from '@react-navigation/native';
 
 interface Location {
   name: string;
@@ -468,21 +469,23 @@ export default function ManageScreen() {
   }, [token]);
 
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
-
-    const loadEvents = async () => {
-      cleanup = await fetchEvents();
+    const loadData = async () => {
+      await fetchEvents();
     };
 
-    loadEvents();
+    loadData();
+  }, []);
 
-    return () => {
-      isMounted.current = false;
-      if (cleanup) {
-        cleanup();
-      }
-    };
-  }, [fetchEvents]);
+  // Add focus effect to refresh data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const loadData = async () => {
+        await fetchEvents();
+      };
+
+      loadData();
+    }, [fetchEvents])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

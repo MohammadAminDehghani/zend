@@ -6,6 +6,11 @@ const router = express.Router();
 
 // Create event
 router.post('/', async (req, res) => {
+  console.log('=== Event Creation Request ===');
+  console.log('Headers:', req.headers);
+  console.log('Body:', req.body);
+  console.log('User:', req.user);
+
   try {
     const { 
       title, 
@@ -24,8 +29,26 @@ router.post('/', async (req, res) => {
     } = req.body;
     const creator = req.user.userId;
 
+    console.log('Parsed Data:', {
+      title,
+      description,
+      type,
+      locations,
+      startDate,
+      endDate,
+      startTime,
+      endTime,
+      repeatFrequency,
+      repeatDays,
+      tags,
+      status,
+      capacity,
+      creator
+    });
+
     // Validate required fields
     if (!title || !description || !type || !locations || !startDate || !startTime || !endTime || !capacity) {
+      console.log('Validation Error: Missing required fields');
       return res.status(400).json({ 
         message: 'Missing required fields',
         required: ['title', 'description', 'type', 'locations', 'startDate', 'startTime', 'endTime', 'capacity']
@@ -107,11 +130,14 @@ router.post('/', async (req, res) => {
       capacity
     });
 
+    console.log('Creating event with data:', event);
     await event.save();
+    console.log('Event created successfully:', event._id);
     res.status(201).json(event);
   } catch (error) {
     console.error('Error creating event:', error);
     if (error.name === 'ValidationError') {
+      console.log('Validation Error Details:', Object.values(error.errors).map(err => err.message));
       return res.status(400).json({ 
         message: 'Validation Error',
         errors: Object.values(error.errors).map(err => err.message)
@@ -155,7 +181,8 @@ router.get('/', async (req, res) => {
 router.get('/managed', async (req, res) => {
   try {
     const currentUser = req.user.userId;
-    const events = await Event.find({ creator: currentUser }).sort({ startDate: 1 });
+    const events = await Event.find({ creator: currentUser })
+      .sort({ createdAt: -1 }); // Sort by creation date, newest first
     
     // Fetch creator and participant details for all events
     const eventsWithDetails = await Promise.all(events.map(async (event) => {

@@ -257,11 +257,13 @@ export const useEventForm = (eventId?: string) => {
         ...formData,
         startDate: startDateTime.toISOString(),
         endDate: endDateTime?.toISOString(),
-        creator: userId,
       };
 
+      const url = eventId 
+        ? `${API_URL}/api/events/${eventId}`
+        : `${API_URL}/api/events`;
+
       const method = eventId ? 'PUT' : 'POST';
-      const url = eventId ? `${API_URL}/api/events/${eventId}` : `${API_URL}/api/events`;
 
       const response = await fetch(url, {
         method,
@@ -273,21 +275,30 @@ export const useEventForm = (eventId?: string) => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to save event');
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save event');
       }
 
       const data = await response.json();
-      showImmediateNotification(
-        'Success',
-        eventId ? 'Event updated successfully' : 'Event created successfully',
-        { type: 'success' }
-      );
+      
+      // Show success notification
+      showImmediateNotification({
+        title: eventId ? 'Event Updated' : 'Event Created',
+        body: eventId ? 'Your event has been updated successfully' : 'Your event has been created successfully',
+        data: { eventId: data._id }
+      });
 
+      // Navigate back to manage screen
       router.back();
+
     } catch (error) {
       console.error('Error saving event:', error);
-      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to save event');
+      setAlertConfig({
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to save event',
+        buttons: [{ text: 'OK', onPress: () => setShowAlert(false) }]
+      });
+      setShowAlert(true);
     } finally {
       setLoading(false);
     }
