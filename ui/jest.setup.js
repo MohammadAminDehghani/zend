@@ -179,4 +179,6 @@ jest.mock('react-native', () => {
     VirtualizedList: 'VirtualizedList',
     FlatList: 'FlatList'
   };
-}); 
+});
+
+process.env.API_URL = process.env.API_URL_TEST; 

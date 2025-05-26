@@ -27,11 +27,11 @@ class SocketService {
     }
 
     // For Android emulator, use 10.0.2.2 instead of localhost
-    const baseUrl = Platform.OS === 'android' 
-      ? 'http://10.0.2.2:3000'
-      : 'http://localhost:3000';
+    const socketUrl = Platform.OS === 'android' 
+      ? process.env.API_URL_ANDROID
+      : process.env.API_URL_DEFAULT;
 
-    return baseUrl.replace(/^http/, 'ws');
+    return socketUrl.replace(/^http/, 'ws');
   }
 
   connect(userId: string) {
