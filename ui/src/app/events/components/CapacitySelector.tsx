@@ -1,0 +1,69 @@
+import React from 'react';
+import { View, Text, TouchableOpacity, TextInput } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { colors, typography, spacing } from '../../theme';
+
+interface CapacitySelectorProps {
+  capacity: number;
+  onIncrease: () => void;
+  onDecrease: () => void;
+  onChange: (text: string) => void;
+}
+
+export const CapacitySelector: React.FC<CapacitySelectorProps> = ({
+  capacity,
+  onIncrease,
+  onDecrease,
+  onChange,
+}) => {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', gap: spacing.sm }}>
+      <TouchableOpacity
+        style={{
+          backgroundColor: colors.background.primary,
+          padding: spacing.sm,
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: colors.border,
+          width: '30%',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        onPress={onDecrease}
+      >
+        <Ionicons name="remove" size={24} color={colors.gray[900]} />
+      </TouchableOpacity>
+      
+      <TextInput
+        style={{
+          width: '40%',
+          textAlign: 'center',
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 8,
+          padding: spacing.sm,
+          fontSize: typography.fontSize.base,
+        }}
+        value={capacity.toString()}
+        onChangeText={onChange}
+        keyboardType="numeric"
+      />
+      
+      <TouchableOpacity
+        style={{
+          backgroundColor: colors.background.primary,
+          padding: spacing.sm,
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: colors.border,
+          width: '30%',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        onPress={onIncrease}
+      >
+        <Ionicons name="add" size={24} color={colors.gray[900]} />
+      </TouchableOpacity>
+    </View>
+  );
+}; 
