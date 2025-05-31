@@ -26,7 +26,7 @@ const apiConfig: ApiConfig = {
 };
 
 // Determine which environment to use
-const ENV = (process.env.ENV || 'production') as Environment;
+const ENV = (process.env.ENV || 'local') as Environment;
 console.log('Current Environment:', ENV);
 console.log('Platform:', Platform.OS);
 
