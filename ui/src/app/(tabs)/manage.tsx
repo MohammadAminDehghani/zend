@@ -14,6 +14,7 @@ import Tag from '../components/Tag';
 import { LinearGradient } from 'expo-linear-gradient';
 import PlatformMap from '../../components/PlatformMap';
 import { useFocusEffect } from '@react-navigation/native';
+import { Marker } from 'react-native-maps';
 
 interface Location {
   name: string;
@@ -881,43 +882,71 @@ export default function ManageScreen() {
             <Text style={[commonStyles.subtitle, { marginBottom: spacing.base }]}>
               Locations
             </Text>
-            {item.locations.map((location, index) => (
-              <View key={index} style={{ marginBottom: index < item.locations.length - 1 ? spacing.base : 0 }}>
-                <Text style={[commonStyles.text, {
-                  fontWeight: '500',
-                  marginBottom: spacing.xs,
-                  color: colors.gray[900]
-                }]}>
-                  📍 {location.name}
-                </Text>
-                <View style={{
-                  height: 120,
-                  borderRadius: borderRadius.lg,
-                  overflow: 'hidden',
-                  borderWidth: 1,
-                  borderColor: colors.gray[200],
-                }}>
-                  <PlatformMap
-                    style={styles.map}
-                    initialRegion={{
+            <View style={{ gap: spacing.sm }}>
+              {item.locations.map((location, index) => (
+                <View key={index} style={[commonStyles.row, { alignItems: 'center', gap: spacing.xs }]}>
+                  <View style={{
+                    width: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    backgroundColor: colors.primary,
+                    opacity: 0.8
+                  }} />
+                  <Text style={[commonStyles.text, {
+                    fontWeight: '500',
+                    color: colors.gray[900]
+                  }]}>
+                    📍 {location.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <View style={{
+              height: 200,
+              borderRadius: borderRadius.sm,
+              overflow: 'hidden',
+              borderWidth: 1,
+              borderColor: colors.gray[200],
+              marginTop: spacing.sm,
+            }}>
+              <PlatformMap
+                style={styles.map}
+                initialRegion={{
+                  latitude: item.locations[0].latitude,
+                  longitude: item.locations[0].longitude,
+                  latitudeDelta: 0.05,
+                  longitudeDelta: 0.05,
+                }}
+              >
+                {item.locations.map((location, index) => (
+                  <Marker
+                    key={index}
+                    coordinate={{
                       latitude: location.latitude,
                       longitude: location.longitude,
-                      latitudeDelta: 0.01,
-                      longitudeDelta: 0.01,
                     }}
-                    eventLocation={location}
+                    title={location.name}
+                    description={`${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`}
                   >
-                    {/* <Marker
-                      coordinate={{
-                        latitude: location.latitude,
-                        longitude: location.longitude,
-                      }}
-                      title={location.name}
-                    /> */}
-                  </PlatformMap>
-                </View>
-              </View>
-            ))}
+                    <View style={{
+                      backgroundColor: colors.primary,
+                      padding: spacing.xs,
+                      borderRadius: borderRadius.sm,
+                      borderWidth: 1,
+                      borderColor: colors.white,
+                    }}>
+                      <Text style={{
+                        color: colors.white,
+                        fontSize: typography.fontSize.xs,
+                        fontWeight: '500',
+                      }}>
+                        {location.name}
+                      </Text>
+                    </View>
+                  </Marker>
+                ))}
+              </PlatformMap>
+            </View>
           </View>
 
           {/* Footer */}
