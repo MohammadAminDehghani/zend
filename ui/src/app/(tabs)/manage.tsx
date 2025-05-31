@@ -905,6 +905,7 @@ export default function ManageScreen() {
                       latitudeDelta: 0.01,
                       longitudeDelta: 0.01,
                     }}
+                    eventLocation={location}
                   >
                     {/* <Marker
                       coordinate={{
