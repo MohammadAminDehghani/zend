@@ -87,15 +87,18 @@ export default function MessagesScreen() {
       onPress={() => handleChatPress(item)}
     >
       {item.type === 'one-to-one' ? (
-        <Image
-          source={{ 
-            uri: item.participants?.[0]?.pictures?.[0]?.url 
-              ? getImageUrl(item.participants[0].pictures[0].url)
-              : undefined 
-          }}
-          defaultSource={require('../assets/default-avatar.png')}
-          style={styles.avatar}
-        />
+        <View style={[styles.avatar, styles.userAvatar]}>
+          {item.participants?.[0]?.pictures?.[0]?.url ? (
+            <Image
+              source={{ 
+                uri: getImageUrl(item.participants[0].pictures[0].url) || undefined
+              }}
+              style={styles.avatar}
+            />
+          ) : (
+            <Ionicons name="person" size={24} color={colors.gray[400]} />
+          )}
+        </View>
       ) : (
         <View style={[styles.avatar, styles.groupAvatar]}>
           <Ionicons name="people" size={24} color={colors.gray[400]} />
@@ -240,5 +243,11 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: typography.fontSize.xs,
     fontWeight: '600',
+  },
+  userAvatar: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.gray[200],
   },
 }); 

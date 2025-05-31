@@ -26,10 +26,16 @@ class SocketService {
       return serverUrl.replace(/^http/, 'ws');
     }
 
+    const isProduction = process.env.NODE_ENV === 'production';
+    
     // For Android emulator, use 10.0.2.2 instead of localhost
     const socketUrl = Platform.OS === 'android' 
-      ? process.env.API_URL_ANDROID
-      : process.env.API_URL_DEFAULT;
+      ? isProduction 
+        ? 'http://99.79.59.84:3000'  // Production Android
+        : 'http://10.0.2.2:3000'     // Local Android
+      : isProduction
+        ? 'http://99.79.59.84:3000'  // Production iOS/Web
+        : 'http://localhost:3000';    // Local iOS/Web
 
     return socketUrl.replace(/^http/, 'ws');
   }

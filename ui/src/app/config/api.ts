@@ -37,7 +37,14 @@ console.log('Selected API URL:', API_URL);
 // Helper function to get full image URL
 export const getImageUrl = (path: string | null) => {
   if (!path) return null;
-  const fullUrl = `${API_URL}${path}`;
+  
+  // Remove leading slash if it exists
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  
+  // Ensure API_URL doesn't end with a slash
+  const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+  
+  const fullUrl = `${baseUrl}/${cleanPath}`;
   console.log('Generated image URL:', fullUrl);
   return fullUrl;
 };
