@@ -1,19 +1,45 @@
 import { Platform } from 'react-native';
 
-// For Android emulator, localhost refers to the emulator's own loopback interface
-// For iOS simulator, localhost works fine
-const apiConfig = {
-  android: process.env.API_URL_ANDROID,
-  ios: process.env.API_URL_IOS,
-  default: process.env.API_URL_DEFAULT,
+type Environment = 'local' | 'production';
+type ApiConfig = {
+  [key in Environment]: {
+    android: string;
+    ios: string;
+    default: string;
+  }
 };
 
-export const API_URL = Platform.select(apiConfig);
+// API URLs for different environments
+const apiConfig: ApiConfig = {
+  // Local development
+  local: {
+    android: 'http://10.0.2.2:3000',  // Android emulator
+    ios: 'http://localhost:3000',     // iOS simulator
+    default: 'http://localhost:3000', // Fallback
+  },
+  // Production with public IP
+  production: {
+    android: 'http://99.79.59.84:3000',  // Replace with your actual public IP
+    ios: 'http://99.79.59.84:3000',     // Replace with your actual public IP
+    default: 'http://99.79.59.84:3000', // Replace with your actual public IP
+  }
+};
+
+// Determine which environment to use
+const ENV = (process.env.ENV || 'production') as Environment;
+console.log('Current Environment:', ENV);
+console.log('Platform:', Platform.OS);
+
+// Select the appropriate API URL based on environment and platform
+export const API_URL = Platform.select(apiConfig[ENV]) || apiConfig[ENV].default;
+console.log('Selected API URL:', API_URL);
 
 // Helper function to get full image URL
 export const getImageUrl = (path: string | null) => {
   if (!path) return null;
-  return `${API_URL}${path}`;
+  const fullUrl = `${API_URL}${path}`;
+  console.log('Generated image URL:', fullUrl);
+  return fullUrl;
 };
 
 export default {

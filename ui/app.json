@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "zendo",
-    "slug": "zendo",
+    "name": "Zendo",
+    "slug": "zend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -17,22 +17,25 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "zendo",
+      "bundleIdentifier": "com.yourcompany.zendo",
+      "buildNumber": "1",
       "config": {
-        "googleMapsApiKey": "AIzaSyC-R-c3fY3bT-u5rcYp6VWf-5s3t6TAua8"
+        "usesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.yourcompany.zendo",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "zendo",
-      "config": {
-        "googleMaps": {
-          "apiKey": "AIzaSyC-R-c3fY3bT-u5rcYp6VWf-5s3t6TAua8"
-        }
-      }
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -61,7 +64,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
+          "locationAlwaysAndWhenInUsePermission": "Allow Zendo to use your location."
         }
       ]
     ],

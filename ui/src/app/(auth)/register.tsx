@@ -10,7 +10,13 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
 
   const handleRegister = async () => {
+    console.log('Starting registration process...');
+    console.log('API URL:', API_URL);
+    console.log('Registration data:', { name, email, password: '***' });
+
     try {
+      console.log('Making fetch request to:', `${API_URL}/api/auth/register`);
+      
       const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
@@ -19,18 +25,23 @@ export default function RegisterScreen() {
         body: JSON.stringify({ name, email, password }),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
+        console.error('Registration failed:', data);
         throw new Error(data.message || 'Registration failed');
       }
 
-      // Store the token and user data (you might want to use AsyncStorage or a state management solution)
       console.log('Registration successful:', data);
       
       // Navigate to the main app
       router.replace('/(tabs)');
     } catch (error) {
+      console.error('Registration error:', error);
       const errorMessage = error instanceof Error ? error.message : 'An error occurred';
       Alert.alert('Error', errorMessage);
     }
